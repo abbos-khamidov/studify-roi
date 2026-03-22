@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/api-error";
 import { getSettings, updateSettings } from "@/lib/queries";
 
 export const runtime = "nodejs";
@@ -17,7 +18,7 @@ export async function GET() {
     return NextResponse.json({ ...rest, openai_key_masked: masked, has_openai_key: Boolean(openai_key) });
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Failed to load settings" }, { status: 500 });
+    return serverError(e);
   }
 }
 
@@ -53,6 +54,6 @@ export async function PUT(req: Request) {
     });
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Failed to update settings" }, { status: 500 });
+    return serverError(e);
   }
 }

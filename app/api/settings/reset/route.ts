@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/api-error";
 import { resetAllData } from "@/lib/queries";
 
 export const runtime = "nodejs";
@@ -10,6 +11,6 @@ export async function POST() {
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Reset failed" }, { status: 500 });
+    return serverError(e);
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/api-error";
 import { createFixedCost, listFixedCosts } from "@/lib/queries";
 
 export const runtime = "nodejs";
@@ -9,7 +10,7 @@ export async function GET() {
     return NextResponse.json(await listFixedCosts());
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Failed to list fixed costs" }, { status: 500 });
+    return serverError(e);
   }
 }
 
@@ -36,6 +37,6 @@ export async function POST(req: Request) {
     return NextResponse.json(row, { status: 201 });
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Failed to create" }, { status: 500 });
+    return serverError(e);
   }
 }

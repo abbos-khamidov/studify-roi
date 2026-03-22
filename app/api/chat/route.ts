@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/api-error";
 import { getChatContext, getSettings } from "@/lib/queries";
 
 export const runtime = "nodejs";
@@ -85,6 +86,6 @@ ${trend3.map((t) => `${t.month}: revenue ${t.revenue}, expenses ${t.expenses}, p
     return NextResponse.json({ reply });
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Chat failed" }, { status: 500 });
+    return serverError(e);
   }
 }

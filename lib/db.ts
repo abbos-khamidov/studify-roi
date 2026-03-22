@@ -1,4 +1,4 @@
-import { createClient, type Client } from "@libsql/client";
+import { createClient, type Client } from "@libsql/client/web";
 
 let initPromise: Promise<Client> | null = null;
 
@@ -15,8 +15,9 @@ function cleanEnv(v: string | undefined | null): string | undefined {
 }
 
 async function migrate(client: Client) {
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS settings (
+  const stmts: { sql: string; args: (string | number)[] }[] = [
+    {
+      sql: `CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       openai_key TEXT DEFAULT '',
       currency TEXT DEFAULT 'USD',
@@ -24,10 +25,11 @@ async function migrate(client: Client) {
       monthly_revenue_target REAL DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
-    )
-  `);
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS categories (
+    )`,
+      args: [],
+    },
+    {
+      sql: `CREATE TABLE IF NOT EXISTS categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
@@ -35,10 +37,11 @@ async function migrate(client: Client) {
       icon TEXT DEFAULT 'folder',
       is_active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT (datetime('now'))
-    )
-  `);
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS transactions (
+    )`,
+      args: [],
+    },
+    {
+      sql: `CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
       amount REAL NOT NULL,
@@ -47,10 +50,11 @@ async function migrate(client: Client) {
       date TEXT NOT NULL,
       is_recurring INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
-    )
-  `);
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS fixed_costs (
+    )`,
+      args: [],
+    },
+    {
+      sql: `CREATE TABLE IF NOT EXISTS fixed_costs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       amount REAL NOT NULL,
@@ -58,14 +62,26 @@ async function migrate(client: Client) {
       frequency TEXT DEFAULT 'monthly' CHECK (frequency IN ('monthly', 'quarterly', 'yearly')),
       is_active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT (datetime('now'))
-    )
-  `);
-  await client.execute(
-    `CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date)`
-  );
-  await client.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type)`);
-  await client.execute(`CREATE INDEX IF NOT EXISTS idx_categories_type ON categories(type)`);
-  await client.execute(`INSERT OR IGNORE INTO settings (id) VALUES (1)`);
+    )`,
+      args: [],
+    },
+    {
+      sql: `CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date)`,
+      args: [],
+    },
+    {
+      sql: `CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type)`,
+      args: [],
+    },
+    {
+      sql: `CREATE INDEX IF NOT EXISTS idx_categories_type ON categories(type)`,
+      args: [],
+    },
+    { sql: `INSERT OR IGNORE INTO settings (id) VALUES (1)`, args: [] },
+  ];
+  for (const s of stmts) {
+    await client.execute(s);
+  }
 }
 
 export async function getDb(): Promise<Client> {

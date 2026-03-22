@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/api-error";
 import { getCategory, softDeleteCategory, updateCategory } from "@/lib/queries";
 
 export const runtime = "nodejs";
@@ -25,7 +26,7 @@ export async function PUT(req: Request, ctx: Ctx) {
     return NextResponse.json(row);
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Failed to update" }, { status: 500 });
+    return serverError(e);
   }
 }
 
@@ -42,6 +43,6 @@ export async function DELETE(_req: Request, ctx: Ctx) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
+    return serverError(e);
   }
 }

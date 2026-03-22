@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/api-error";
 import { getAnalytics } from "@/lib/queries";
 
 export const runtime = "nodejs";
@@ -10,8 +11,6 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (e) {
     console.error(e);
-    const message =
-      e instanceof Error ? e.message : "Analytics failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverError(e);
   }
 }

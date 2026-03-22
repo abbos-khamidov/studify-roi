@@ -85,15 +85,19 @@ function monthlyEquivalent(amount: number, frequency: string): number {
 }
 
 export async function getFixedCostsMonthlyTotal(): Promise<number> {
-  const result = await (await getDb()).execute(
-    `SELECT amount, frequency FROM fixed_costs WHERE is_active = 1`
-  );
+  const result = await (await getDb()).execute({
+    sql: `SELECT amount, frequency FROM fixed_costs WHERE is_active = 1`,
+    args: [],
+  });
   const rows = mapRows<{ amount: number; frequency: string }>(result);
   return rows.reduce((s, r) => s + monthlyEquivalent(Number(r.amount), r.frequency), 0);
 }
 
 export async function getSettings(): Promise<Settings> {
-  const result = await (await getDb()).execute(`SELECT * FROM settings WHERE id = 1`);
+  const result = await (await getDb()).execute({
+    sql: `SELECT * FROM settings WHERE id = 1`,
+    args: [],
+  });
   return mapRow<Settings>(result)!;
 }
 
@@ -223,7 +227,10 @@ export async function softDeleteCategory(id: number): Promise<CategoryRow | null
 }
 
 export async function listFixedCosts(): Promise<FixedCostRow[]> {
-  const result = await (await getDb()).execute(`SELECT * FROM fixed_costs ORDER BY name ASC`);
+  const result = await (await getDb()).execute({
+    sql: `SELECT * FROM fixed_costs ORDER BY name ASC`,
+    args: [],
+  });
   return mapRows<FixedCostRow>(result);
 }
 

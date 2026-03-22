@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/api-error";
 import { exportAllJson } from "@/lib/queries";
 
 export const runtime = "nodejs";
@@ -15,6 +16,6 @@ export async function GET() {
     return NextResponse.json(safe);
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Export failed" }, { status: 500 });
+    return serverError(e);
   }
 }
