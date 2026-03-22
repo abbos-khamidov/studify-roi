@@ -9,6 +9,8 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const NO_CACHE = { "Cache-Control": "no-store, no-cache, must-revalidate" };
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -19,13 +21,13 @@ export async function GET(req: Request) {
         type: type === "income" || type === "expense" ? type : undefined,
         includeInactive: searchParams.get("include_inactive") === "1",
       });
-      return NextResponse.json(rows);
+      return NextResponse.json(rows, { headers: NO_CACHE });
     }
     const rows = await listCategories({
       type: type === "income" || type === "expense" ? type : undefined,
       includeInactive: searchParams.get("include_inactive") === "1",
     });
-    return NextResponse.json(rows);
+    return NextResponse.json(rows, { headers: NO_CACHE });
   } catch (e) {
     console.error(e);
     return serverError(e);

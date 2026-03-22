@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useCurrency } from "@/components/currency-provider";
@@ -18,22 +19,25 @@ type Analytics = Awaited<ReturnType<typeof import("@/lib/queries").getAnalytics>
 
 export function DashboardClient() {
   const { currency } = useCurrency();
+  const router = useRouter();
   const [data, setData] = useState<Analytics | null>(null);
   const [cats, setCats] = useState<{ length: number }>({ length: 0 });
   const [fixedN, setFixedN] = useState(0);
   const [hasKey, setHasKey] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const hasLoadedOnce = useRef(false);
+  const lastLoadedAt = useRef(0);
 
   const loadDashboard = useCallback(async () => {
     setErr(null);
     const opts: RequestInit = { cache: "no-store" };
+    const t = Date.now();
     try {
       const [aRes, cRes, fRes, sRes] = await Promise.all([
-        fetch("/api/analytics", opts),
-        fetch("/api/categories", opts),
-        fetch("/api/fixed-costs", opts),
-        fetch("/api/settings", opts),
+        fetch(`/api/analytics?_t=${t}`, opts),
+        fetch(`/api/categories?_t=${t}`, opts),
+        fetch(`/api/fixed-costs?_t=${t}`, opts),
+        fetch(`/api/settings?_t=${t}`, opts),
       ]);
       const [a, c, f, s] = await Promise.all([
         aRes.json(),
@@ -45,6 +49,7 @@ export function DashboardClient() {
       else {
         setData(a);
         hasLoadedOnce.current = true;
+        lastLoadedAt.current = Date.now();
       }
       setCats({ length: Array.isArray(c) ? c.length : 0 });
       if (!a.error && a.expenses && typeof a.expenses.activeFixedCount === "number") {
@@ -64,18 +69,29 @@ export function DashboardClient() {
 
   useEffect(() => {
     const onInvalidate = () => {
+      router.refresh();
       void loadDashboard();
     };
     window.addEventListener(FINANCE_DATA_CHANGED_EVENT, onInvalidate);
+
     const onPageShow = (e: PageTransitionEvent) => {
       if (e.persisted) void loadDashboard();
     };
     window.addEventListener("pageshow", onPageShow);
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && Date.now() - lastLoadedAt.current > 10_000) {
+        void loadDashboard();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
       window.removeEventListener(FINANCE_DATA_CHANGED_EVENT, onInvalidate);
       window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [loadDashboard]);
+  }, [loadDashboard, router]);
 
   if (err || !data) {
     return (

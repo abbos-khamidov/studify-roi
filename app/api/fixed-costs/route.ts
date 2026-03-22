@@ -5,9 +5,11 @@ import { createFixedCost, listFixedCosts } from "@/lib/queries";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const NO_CACHE = { "Cache-Control": "no-store, no-cache, must-revalidate" };
+
 export async function GET() {
   try {
-    return NextResponse.json(await listFixedCosts());
+    return NextResponse.json(await listFixedCosts(), { headers: NO_CACHE });
   } catch (e) {
     console.error(e);
     return serverError(e);
