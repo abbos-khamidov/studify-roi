@@ -14,13 +14,13 @@ export async function GET(req: Request) {
     const type = searchParams.get("type") ?? undefined;
     const stats = searchParams.get("stats") === "1";
     if (stats) {
-      const rows = listCategoriesWithStats({
+      const rows = await listCategoriesWithStats({
         type: type === "income" || type === "expense" ? type : undefined,
         includeInactive: searchParams.get("include_inactive") === "1",
       });
       return NextResponse.json(rows);
     }
-    const rows = listCategories({
+    const rows = await listCategories({
       type: type === "income" || type === "expense" ? type : undefined,
       includeInactive: searchParams.get("include_inactive") === "1",
     });
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     if (body.type !== "income" && body.type !== "expense") {
       return NextResponse.json({ error: "type must be income or expense" }, { status: 400 });
     }
-    const row = createCategory({
+    const row = await createCategory({
       name: body.name.trim(),
       type: body.type,
       color: body.color,

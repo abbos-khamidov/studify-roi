@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const data = exportAllJson();
+    const data = await exportAllJson();
     const { openai_key, ...settingsRest } = data.settings as Record<string, unknown>;
     const safe = {
       ...data,

@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const s = getSettings();
+    const s = await getSettings();
     const { openai_key, ...rest } = s;
     const masked =
       openai_key.length > 8
@@ -39,7 +39,7 @@ export async function PUT(req: Request) {
     if (patch.currency && !["USD", "UZS", "EUR"].includes(String(patch.currency))) {
       return NextResponse.json({ error: "Invalid currency" }, { status: 400 });
     }
-    const updated = updateSettings(patch);
+    const updated = await updateSettings(patch);
     const { openai_key, ...rest } = updated;
     return NextResponse.json({
       ...rest,

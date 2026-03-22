@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     const limit = searchParams.get("limit");
     const sort = searchParams.get("sort") ?? undefined;
     const order = searchParams.get("order") === "asc" ? "asc" : "desc";
-    const result = listTransactions({
+    const result = await listTransactions({
       type: type === "income" || type === "expense" ? type : undefined,
       category_id: category_id ? Number(category_id) : undefined,
       from,
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     if (!body.date || typeof body.date !== "string") {
       return NextResponse.json({ error: "date required" }, { status: 400 });
     }
-    const row = createTransaction({
+    const row = await createTransaction({
       type: body.type,
       amount,
       description: body.description ?? null,

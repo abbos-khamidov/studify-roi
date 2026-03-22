@@ -30,7 +30,7 @@ export async function PUT(req: Request, ctx: Ctx) {
       patch.frequency = body.frequency;
     }
     if (body.is_active !== undefined) patch.is_active = body.is_active ? 1 : 0;
-    const row = updateFixedCost(id, patch);
+    const row = await updateFixedCost(id, patch);
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(row);
   } catch (e) {
@@ -46,9 +46,9 @@ export async function DELETE(_req: Request, ctx: Ctx) {
     if (!Number.isFinite(id)) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
-    const exists = listFixedCosts().some((f) => f.id === id);
+    const exists = (await listFixedCosts()).some((f) => f.id === id);
     if (!exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    deleteFixedCost(id);
+    await deleteFixedCost(id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error(e);

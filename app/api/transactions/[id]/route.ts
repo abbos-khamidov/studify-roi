@@ -29,7 +29,7 @@ export async function PUT(req: Request, ctx: Ctx) {
     }
     if (body.date != null) patch.date = String(body.date);
     if (body.is_recurring !== undefined) patch.is_recurring = body.is_recurring ? 1 : 0;
-    const row = updateTransaction(id, patch);
+    const row = await updateTransaction(id, patch);
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(row);
   } catch (e) {
@@ -45,9 +45,9 @@ export async function DELETE(_req: Request, ctx: Ctx) {
     if (!Number.isFinite(id)) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
-    const cur = getTransaction(id);
+    const cur = await getTransaction(id);
     if (!cur) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    deleteTransaction(id);
+    await deleteTransaction(id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error(e);

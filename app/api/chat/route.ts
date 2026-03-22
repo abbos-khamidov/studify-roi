@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     if (!message || typeof message !== "string") {
       return NextResponse.json({ error: "message required" }, { status: 400 });
     }
-    const settings = getSettings();
+    const settings = await getSettings();
     if (!settings.openai_key) {
       return NextResponse.json(
         { error: "OpenAI API key not configured" },
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { analytics, fixedCosts, categories } = getChatContext();
+    const { analytics, fixedCosts, categories } = await getChatContext();
     const trend3 = analytics.profit.trend.slice(-3);
 
     const systemPrompt = `Ты финансовый аналитик CEO агентства "${settings.company_name}" (study abroad agency в Узбекистане).

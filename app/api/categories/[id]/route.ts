@@ -20,7 +20,7 @@ export async function PUT(req: Request, ctx: Ctx) {
     if (body.color != null) patch.color = String(body.color);
     if (body.icon != null) patch.icon = String(body.icon);
     if (body.is_active !== undefined) patch.is_active = body.is_active ? 1 : 0;
-    const row = updateCategory(id, patch);
+    const row = await updateCategory(id, patch);
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(row);
   } catch (e) {
@@ -36,9 +36,9 @@ export async function DELETE(_req: Request, ctx: Ctx) {
     if (!Number.isFinite(id)) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
-    const cur = getCategory(id);
+    const cur = await getCategory(id);
     if (!cur) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    softDeleteCategory(id);
+    await softDeleteCategory(id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error(e);

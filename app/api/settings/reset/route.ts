@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST() {
   try {
-    resetAllData();
+    await resetAllData();
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error(e);
