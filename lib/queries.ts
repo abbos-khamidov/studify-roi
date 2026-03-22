@@ -423,16 +423,28 @@ export async function deleteTransaction(id: number): Promise<void> {
   await (await getDb()).execute({ sql: `DELETE FROM transactions WHERE id = ?`, args: [id] });
 }
 
-async function sumTxRange(
-  type: "income" | "expense",
+/** Один запрос на весь диапазон вместо N×2 sumTxRange (Turso HTTP не любит параллель). */
+async function transactionsTotalsByMonthAndType(
   from: string,
   to: string
-): Promise<number> {
+): Promise<Map<string, { income: number; expense: number }>> {
   const result = await (await getDb()).execute({
-    sql: `SELECT COALESCE(SUM(amount), 0) as s FROM transactions WHERE type = ? AND date >= ? AND date <= ?`,
-    args: [type, from, to],
+    sql: `SELECT strftime('%Y-%m', date) AS month, type, COALESCE(SUM(amount), 0) AS total
+          FROM transactions
+          WHERE date >= ? AND date <= ?
+          GROUP BY strftime('%Y-%m', date), type`,
+    args: [from, to],
   });
-  return Number(mapRow<{ s: number }>(result)!.s);
+  const map = new Map<string, { income: number; expense: number }>();
+  for (const row of mapRows<{ month: string; type: string; total: number }>(result)) {
+    const m = String(row.month);
+    if (!map.has(m)) map.set(m, { income: 0, expense: 0 });
+    const b = map.get(m)!;
+    const t = Number(row.total);
+    if (row.type === "income") b.income = t;
+    else if (row.type === "expense") b.expense = t;
+  }
+  return map;
 }
 
 async function avgIncomeAmount(from: string, to: string): Promise<number> {
@@ -463,54 +475,48 @@ async function categoryTotals(
 
 export async function getAnalytics() {
   const settings = await getSettings();
+  const fixedTotal = await getFixedCostsMonthlyTotal();
+
   const now = new Date();
   const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(now), "yyyy-MM-dd");
-  const prevStart = format(startOfMonth(subMonths(now, 1)), "yyyy-MM-dd");
-  const prevEnd = format(endOfMonth(subMonths(now, 1)), "yyyy-MM-dd");
 
   const rangeEnd = endOfMonth(now);
   const rangeStart = startOfMonth(subMonths(now, 11));
+  const rangeFrom = format(rangeStart, "yyyy-MM-dd");
+  const rangeTo = format(rangeEnd, "yyyy-MM-dd");
   const months = eachMonthOfInterval({ start: rangeStart, end: rangeEnd });
 
-  const fixedTotal = await getFixedCostsMonthlyTotal();
+  const monthlyTotals = await transactionsTotalsByMonthAndType(rangeFrom, rangeTo);
 
-  const [
-    revMonth,
-    expVarMonth,
-    revPrev,
-    expVarPrev,
-    avgDealVal,
-    incomeCats,
-    expenseCats,
-    byMonthData,
-  ] = await Promise.all([
-    sumTxRange("income", monthStart, monthEnd),
-    sumTxRange("expense", monthStart, monthEnd),
-    sumTxRange("income", prevStart, prevEnd),
-    sumTxRange("expense", prevStart, prevEnd),
-    avgIncomeAmount(monthStart, monthEnd),
-    categoryTotals("income", monthStart, monthEnd),
-    categoryTotals("expense", monthStart, monthEnd),
-    Promise.all(
-      months.map(async (m) => {
-        const fs = format(startOfMonth(m), "yyyy-MM-dd");
-        const fe = format(endOfMonth(m), "yyyy-MM-dd");
-        const [revenue, expVar] = await Promise.all([
-          sumTxRange("income", fs, fe),
-          sumTxRange("expense", fs, fe),
-        ]);
-        const expenses = expVar + fixedTotal;
-        return {
-          month: format(m, "yyyy-MM"),
-          label: format(m, "MMM yyyy"),
-          revenue,
-          expenses,
-          profit: revenue - expenses,
-        };
-      })
-    ),
-  ]);
+  const curKey = format(startOfMonth(now), "yyyy-MM");
+  const curAgg = monthlyTotals.get(curKey) ?? { income: 0, expense: 0 };
+  const revMonth = curAgg.income;
+  const expVarMonth = curAgg.expense;
+
+  const prevKey = format(startOfMonth(subMonths(now, 1)), "yyyy-MM");
+  const prevAgg = monthlyTotals.get(prevKey) ?? { income: 0, expense: 0 };
+  const revPrev = prevAgg.income;
+  const expVarPrev = prevAgg.expense;
+
+  const avgDealVal = await avgIncomeAmount(monthStart, monthEnd);
+  const incomeCats = await categoryTotals("income", monthStart, monthEnd);
+  const expenseCats = await categoryTotals("expense", monthStart, monthEnd);
+
+  const byMonthData = months.map((m) => {
+    const key = format(m, "yyyy-MM");
+    const agg = monthlyTotals.get(key) ?? { income: 0, expense: 0 };
+    const revenue = agg.income;
+    const expVar = agg.expense;
+    const expenses = expVar + fixedTotal;
+    return {
+      month: key,
+      label: format(m, "MMM yyyy"),
+      revenue,
+      expenses,
+      profit: revenue - expenses,
+    };
+  });
 
   const expMonth = expVarMonth + fixedTotal;
   const profitMonth = revMonth - expMonth;
@@ -599,11 +605,9 @@ export async function listCategoriesWithStats(filters?: {
 }
 
 export async function getChatContext() {
-  const [analytics, fixedCosts, categories] = await Promise.all([
-    getAnalytics(),
-    listFixedCosts(),
-    listCategories({ includeInactive: false }),
-  ]);
+  const analytics = await getAnalytics();
+  const fixedCosts = await listFixedCosts();
+  const categories = await listCategories({ includeInactive: false });
   return {
     analytics,
     fixedCosts: fixedCosts.filter((f) => f.is_active),
