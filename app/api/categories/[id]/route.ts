@@ -1,0 +1,47 @@
+import { NextResponse } from "next/server";
+import { getCategory, softDeleteCategory, updateCategory } from "@/lib/queries";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type Ctx = { params: { id: string } };
+
+export async function PUT(req: Request, ctx: Ctx) {
+  try {
+    const { id: idStr } = ctx.params;
+    const id = Number(idStr);
+    if (!Number.isFinite(id)) {
+      return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+    }
+    const body = await req.json();
+    const patch: Parameters<typeof updateCategory>[1] = {};
+    if (body.name != null) patch.name = String(body.name).trim();
+    if (body.type === "income" || body.type === "expense") patch.type = body.type;
+    if (body.color != null) patch.color = String(body.color);
+    if (body.icon != null) patch.icon = String(body.icon);
+    if (body.is_active !== undefined) patch.is_active = body.is_active ? 1 : 0;
+    const row = updateCategory(id, patch);
+    if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json(row);
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: "Failed to update" }, { status: 500 });
+  }
+}
+
+export async function DELETE(_req: Request, ctx: Ctx) {
+  try {
+    const { id: idStr } = ctx.params;
+    const id = Number(idStr);
+    if (!Number.isFinite(id)) {
+      return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+    }
+    const cur = getCategory(id);
+    if (!cur) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    softDeleteCategory(id);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
+  }
+}
