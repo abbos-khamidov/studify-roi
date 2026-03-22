@@ -30,8 +30,13 @@ export function FixedCostsPanel({
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/fixed-costs");
-    setItems(await res.json());
+    try {
+      const res = await fetch("/api/fixed-costs");
+      const data = await res.json();
+      setItems(Array.isArray(data) ? data : []);
+    } catch {
+      setItems([]);
+    }
   }, []);
 
   useEffect(() => {

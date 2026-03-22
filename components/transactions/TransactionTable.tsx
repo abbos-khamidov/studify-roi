@@ -19,6 +19,15 @@ type Row = {
 
 type Cat = { id: number; name: string; type: string };
 
+function formatTxDate(d: string | null | undefined): string {
+  if (d == null || d === "") return "—";
+  const s = String(d);
+  const iso = s.includes("T") ? s : `${s}T12:00:00`;
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return format(parsed, "dd.MM.yyyy");
+}
+
 export function TransactionTable({
   currency,
   categories,
@@ -54,8 +63,11 @@ export function TransactionTable({
     if (to) params.set("to", to);
     const res = await fetch(`/api/transactions?${params}`);
     const data = await res.json();
-    setItems(data.items || []);
-    setTotalPages(data.totalPages || 1);
+    const list = data?.items;
+    setItems(Array.isArray(list) ? list : []);
+    setTotalPages(
+      typeof data?.totalPages === "number" && data.totalPages >= 1 ? data.totalPages : 1
+    );
     setLoading(false);
   }, [tabType, page, sort, order, filterCat, from, to]);
 
@@ -183,7 +195,7 @@ export function TransactionTable({
               items.map((r) => (
                 <tr key={r.id} className="border-t border-[var(--border)]">
                   <td className="p-3 font-mono-data text-[var(--text-primary)]">
-                    {format(new Date(r.date + "T12:00:00"), "dd.MM.yyyy")}
+                    {formatTxDate(r.date)}
                   </td>
                   <td className="p-3">
                     {r.type === "income" ? (

@@ -6,7 +6,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 export function Header() {
   const { currency } = useCurrency();
 
-  const label = currency === "EUR" ? "EUR (€)" : "UZS (soʻm)";
+  const label = currency === "EUR" ? "EUR (€)" : "UZS (сум)";
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg-secondary)]/90 backdrop-blur-md">

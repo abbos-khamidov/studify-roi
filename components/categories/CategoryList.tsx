@@ -37,7 +37,8 @@ export function CategoryList({
         ? "?stats=1&include_inactive=1"
         : `?stats=1&type=${filter}&include_inactive=1`;
     const res = await fetch(`/api/categories${q}`);
-    setRows(await res.json());
+    const data = await res.json();
+    setRows(Array.isArray(data) ? data : []);
     setLoading(false);
   }, [filter]);
 

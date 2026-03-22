@@ -113,7 +113,7 @@ export default function SettingsPage() {
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
           >
-            <option value="UZS">UZS (soʻm)</option>
+            <option value="UZS">UZS (сум)</option>
             <option value="EUR">EUR (€)</option>
           </select>
         </div>

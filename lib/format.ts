@@ -1,6 +1,6 @@
 const SYMBOLS: Record<string, string> = {
   EUR: "€",
-  UZS: "soʻm",
+  UZS: "сум",
 };
 
 /** Postgres NUMERIC / JSON иногда отдаёт строку — приводим к числу. */
