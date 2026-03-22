@@ -2,6 +2,18 @@ import { createClient, type Client } from "@libsql/client";
 
 let initPromise: Promise<Client> | null = null;
 
+function cleanEnv(v: string | undefined | null): string | undefined {
+  if (v == null) return undefined;
+  let t = String(v).trim();
+  if (
+    (t.startsWith('"') && t.endsWith('"')) ||
+    (t.startsWith("'") && t.endsWith("'"))
+  ) {
+    t = t.slice(1, -1).trim();
+  }
+  return t || undefined;
+}
+
 async function migrate(client: Client) {
   await client.execute(`
     CREATE TABLE IF NOT EXISTS settings (
@@ -58,14 +70,23 @@ async function migrate(client: Client) {
 
 export async function getDb(): Promise<Client> {
   if (!initPromise) {
-    initPromise = (async () => {
-      const url = process.env.TURSO_DATABASE_URL?.trim();
+    const p = (async () => {
+      const url = cleanEnv(process.env.TURSO_DATABASE_URL);
       if (!url) {
         throw new Error(
           "TURSO_DATABASE_URL is not set. Add it in Vercel → Settings → Environment Variables."
         );
       }
-      const authToken = process.env.TURSO_AUTH_TOKEN?.trim();
+      const authToken = cleanEnv(process.env.TURSO_AUTH_TOKEN);
+      const isRemote =
+        url.startsWith("libsql://") ||
+        url.includes("turso.io") ||
+        url.startsWith("https://");
+      if (isRemote && !authToken) {
+        throw new Error(
+          "TURSO_AUTH_TOKEN is required for Turso. Create a DB token in the Turso dashboard and add it to Vercel env."
+        );
+      }
       const client = createClient({
         url,
         authToken: authToken || undefined,
@@ -73,6 +94,10 @@ export async function getDb(): Promise<Client> {
       await migrate(client);
       return client;
     })();
+    initPromise = p.catch((err) => {
+      initPromise = null;
+      throw err;
+    });
   }
   return initPromise;
 }

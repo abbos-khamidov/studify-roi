@@ -49,11 +49,20 @@ export type FixedCostRow = {
   created_at: string;
 };
 
+/** Turso/libsql может отдавать INTEGER как BigInt — ломает JSON.stringify в NextResponse */
+function normalizeCell(v: unknown): unknown {
+  if (typeof v === "bigint") {
+    const n = Number(v);
+    return Number.isSafeInteger(n) ? n : v.toString();
+  }
+  return v;
+}
+
 function mapRows<T>(result: ResultSet): T[] {
   return result.rows.map((row) => {
     const obj: Record<string, unknown> = {};
     result.columns.forEach((col, i) => {
-      obj[col] = row[i];
+      obj[col] = normalizeCell(row[i]);
     });
     return obj as unknown as T;
   });
@@ -64,7 +73,7 @@ function mapRow<T>(result: ResultSet): T | undefined {
   const row = result.rows[0];
   const obj: Record<string, unknown> = {};
   result.columns.forEach((col, i) => {
-    obj[col] = row[i];
+    obj[col] = normalizeCell(row[i]);
   });
   return obj as unknown as T;
 }
@@ -118,30 +127,29 @@ export async function updateSettings(
 }
 
 export async function resetAllData(): Promise<void> {
-  await (await getDb()).batch(
-    [
-      { sql: "DELETE FROM transactions", args: [] },
-      { sql: "DELETE FROM fixed_costs", args: [] },
-      { sql: "DELETE FROM categories", args: [] },
-      {
-        sql: `UPDATE settings SET openai_key = '', currency = 'USD', company_name = 'Studify', monthly_revenue_target = 0, updated_at = CURRENT_TIMESTAMP WHERE id = 1`,
-        args: [],
-      },
-    ],
-    "write"
-  );
+  const d = await getDb();
+  // Не используем batch(): на Turso HTTP иногда даёт 400 (SQL cache / hrana)
+  await d.execute({ sql: "DELETE FROM transactions", args: [] });
+  await d.execute({ sql: "DELETE FROM fixed_costs", args: [] });
+  await d.execute({ sql: "DELETE FROM categories", args: [] });
+  await d.execute({
+    sql: `UPDATE settings SET openai_key = '', currency = 'USD', company_name = 'Studify', monthly_revenue_target = 0, updated_at = CURRENT_TIMESTAMP WHERE id = 1`,
+    args: [],
+  });
 }
 
 export async function exportAllJson() {
-  const [settingsResult, catResult, txResult, fcResult] = await (await getDb()).batch(
-    [
-      { sql: "SELECT * FROM settings WHERE id = 1", args: [] },
-      { sql: "SELECT * FROM categories", args: [] },
-      { sql: "SELECT * FROM transactions ORDER BY date DESC", args: [] },
-      { sql: "SELECT * FROM fixed_costs", args: [] },
-    ],
-    "read"
-  );
+  const d = await getDb();
+  const settingsResult = await d.execute({
+    sql: "SELECT * FROM settings WHERE id = 1",
+    args: [],
+  });
+  const catResult = await d.execute({ sql: "SELECT * FROM categories", args: [] });
+  const txResult = await d.execute({
+    sql: "SELECT * FROM transactions ORDER BY date DESC",
+    args: [],
+  });
+  const fcResult = await d.execute({ sql: "SELECT * FROM fixed_costs", args: [] });
   return {
     settings: mapRow<Settings>(settingsResult)!,
     categories: mapRows<CategoryRow>(catResult),
@@ -314,24 +322,20 @@ export async function listTransactions(params: {
     qparams.push(params.to);
   }
 
-  const [countResult, rowsResult] = await (await getDb()).batch(
-    [
-      {
-        sql: `SELECT COUNT(*) as c FROM transactions t ${where}`,
-        args: qparams,
-      },
-      {
-        sql: `SELECT t.*, c.name as category_name, c.color as category_color
-              FROM transactions t
-              LEFT JOIN categories c ON c.id = t.category_id
-              ${where}
-              ORDER BY ${sort} ${order}
-              LIMIT ? OFFSET ?`,
-        args: [...qparams, limit, offset],
-      },
-    ],
-    "read"
-  );
+  const d = await getDb();
+  const countResult = await d.execute({
+    sql: `SELECT COUNT(*) as c FROM transactions t ${where}`,
+    args: qparams,
+  });
+  const rowsResult = await d.execute({
+    sql: `SELECT t.*, c.name as category_name, c.color as category_color
+          FROM transactions t
+          LEFT JOIN categories c ON c.id = t.category_id
+          ${where}
+          ORDER BY ${sort} ${order}
+          LIMIT ? OFFSET ?`,
+    args: [...qparams, limit, offset],
+  });
 
   const total = Number(mapRow<{ c: number }>(countResult)!.c);
   return {

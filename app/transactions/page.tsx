@@ -19,8 +19,10 @@ export default function TransactionsPage() {
   useEffect(() => {
     fetch("/api/categories")
       .then((r) => r.json())
-      .then(setCategories)
-      .catch(() => {});
+      .then((data) => {
+        setCategories(Array.isArray(data) ? data : []);
+      })
+      .catch(() => setCategories([]));
   }, [tick]);
 
   const expenseCats = categories.filter((c) => c.type === "expense");
