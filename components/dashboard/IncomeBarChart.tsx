@@ -11,7 +11,8 @@ import {
   YAxis,
 } from "recharts";
 import { Card } from "@/components/ui/Card";
-import { formatCurrency } from "@/lib/format";
+import { CEOHint } from "@/components/ui/CEOHint";
+import { asNumber, formatCurrency } from "@/lib/format";
 
 type Cat = { id: number; name: string; color: string; total: number };
 
@@ -22,14 +23,14 @@ export function IncomeBarChart({
   income: Cat[];
   currency: string;
 }) {
-  const data = income.filter((e) => e.total > 0);
+  const data = income.filter((e) => asNumber(e.total) > 0);
   if (data.length === 0) {
     return (
       <Card className="p-5">
         <h3 className="font-display text-lg font-bold text-[var(--text-primary)]">
-          Income Sources
+          Источники дохода
         </h3>
-        <p className="mt-8 text-center text-sm text-[var(--text-muted)]">Нет доходов за период</p>
+        <p className="mt-8 text-center text-sm text-[var(--text-muted)]">Нет доходов за месяц</p>
       </Card>
     );
   }
@@ -38,9 +39,13 @@ export function IncomeBarChart({
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
       <Card className="p-5">
         <h3 className="font-display text-lg font-bold text-[var(--text-primary)]">
-          Income Sources
+          Источники дохода
         </h3>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">По категориям</p>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">По категориям за текущий месяц</p>
+        <CEOHint>
+          Каждый столбец — сумма доходных транзакций в выбранной категории. Помогает увидеть, какая линия
+          бизнеса даёт основную выручку.
+        </CEOHint>
         <div className="mt-4 h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 40 }}>

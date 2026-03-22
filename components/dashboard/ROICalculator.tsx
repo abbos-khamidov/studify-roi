@@ -1,22 +1,73 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/Card";
+import { CEOHint } from "@/components/ui/CEOHint";
 import { Slider } from "@/components/ui/Slider";
 import { formatCurrency, formatPercent } from "@/lib/format";
 
+type RangePreset = {
+  dealDefault: number;
+  dealMin: number;
+  dealMax: number;
+  dealStep: number;
+  dealsMax: number;
+};
+
+function rangeForCurrency(currency: string): RangePreset {
+  if (currency === "UZS") {
+    return {
+      dealDefault: 5_000_000,
+      dealMin: 100_000,
+      dealMax: 200_000_000,
+      dealStep: 500_000,
+      dealsMax: 200,
+    };
+  }
+  if (currency === "EUR") {
+    return {
+      dealDefault: 2000,
+      dealMin: 50,
+      dealMax: 80_000,
+      dealStep: 50,
+      dealsMax: 150,
+    };
+  }
+  return {
+    dealDefault: 2500,
+    dealMin: 100,
+    dealMax: 50_000,
+    dealStep: 100,
+    dealsMax: 100,
+  };
+}
+
 export function ROICalculator({
-  operatingCosts,
+  totalMonthlyExpenses,
+  fixedMonthlyEquivalent,
+  variableExpensesThisMonth,
   currency,
 }: {
-  operatingCosts: number;
+  /** Полные расходы текущего месяца: переменные + фикс (в мес. эквиваленте). */
+  totalMonthlyExpenses: number;
+  fixedMonthlyEquivalent: number;
+  variableExpensesThisMonth: number;
   currency: string;
 }) {
-  const [dealValue, setDealValue] = useState(2500);
+  const preset = useMemo(() => rangeForCurrency(currency), [currency]);
+  const [dealValue, setDealValue] = useState(preset.dealDefault);
   const [dealsPerMonth, setDealsPerMonth] = useState(10);
   const [targetMargin, setTargetMargin] = useState(30);
 
+  useEffect(() => {
+    const p = rangeForCurrency(currency);
+    setDealValue(p.dealDefault);
+    setDealsPerMonth(10);
+    setTargetMargin(30);
+  }, [currency]);
+
+  const operatingCosts = totalMonthlyExpenses;
   const monthlyRevenue = dealValue * dealsPerMonth;
   const monthlyProfit = monthlyRevenue - operatingCosts;
   const actualMargin = monthlyRevenue > 0 ? (monthlyProfit / monthlyRevenue) * 100 : 0;
@@ -28,68 +79,69 @@ export function ROICalculator({
 
   const fmt = (n: number) => formatCurrency(n, currency);
 
-  const sliders = useMemo(
-    () => ({
-      dealValue: { min: 100, max: 50000, step: 100 },
-      deals: { min: 1, max: 100, step: 1 },
-      margin: { min: 0, max: 80, step: 1 },
-    }),
-    []
-  );
-
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
       <Card className="p-5">
         <h3 className="font-display text-lg font-bold text-[var(--text-primary)]">
-          ROI Calculator
+          Калькулятор ROI (сценарий)
         </h3>
         <p className="mt-1 text-sm text-[var(--text-muted)]">
-          Операционные расходы подставлены из фиксированных затрат (месячный эквивалент)
+          Считаем «что если» по среднему чеку и числу сделок. База расходов — факт за текущий месяц.
         </p>
+        <CEOHint>
+          Раньше подставлялись только фиксированные расходы, из‑за этого при больших переменных расходах
+          картина была искажена. Сейчас в формулу входят все расходы месяца (фикс + переменные по
+          транзакциям). Для сумов слайдер чека масштабирован под крупные суммы; крупные значения показываются
+          в компактном виде (млн).
+        </CEOHint>
+        <div className="mt-4 rounded-xl bg-[var(--bg-tertiary)] p-4 text-sm text-[var(--text-secondary)]">
+          <p>
+            Расходы месяца (база):{" "}
+            <span className="font-mono-data font-semibold text-[var(--text-primary)]">
+              {fmt(operatingCosts)}
+            </span>
+          </p>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">
+            из них фикс (мес. эквив.): {fmt(fixedMonthlyEquivalent)} · переменные:{" "}
+            {fmt(variableExpensesThisMonth)}
+          </p>
+        </div>
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <div className="space-y-6">
             <Slider
-              label="Average deal value"
-              min={sliders.dealValue.min}
-              max={sliders.dealValue.max}
-              step={sliders.dealValue.step}
-              value={dealValue}
+              label="Средний чек (сделка)"
+              min={preset.dealMin}
+              max={preset.dealMax}
+              step={preset.dealStep}
+              value={Math.min(preset.dealMax, Math.max(preset.dealMin, dealValue))}
               onChange={setDealValue}
               format={(v) => fmt(v)}
             />
             <Slider
-              label="Deals per month"
-              min={sliders.deals.min}
-              max={sliders.deals.max}
-              step={sliders.deals.step}
-              value={dealsPerMonth}
+              label="Сделок в месяц"
+              min={1}
+              max={preset.dealsMax}
+              step={1}
+              value={Math.min(preset.dealsMax, Math.max(1, dealsPerMonth))}
               onChange={setDealsPerMonth}
             />
             <Slider
-              label="Target profit margin"
-              min={sliders.margin.min}
-              max={sliders.margin.max}
-              step={sliders.margin.step}
+              label="Целевая маржа прибыли"
+              min={0}
+              max={80}
+              step={1}
               value={targetMargin}
               onChange={setTargetMargin}
               format={(v) => formatPercent(v, 0)}
             />
-            <div className="rounded-xl bg-[var(--bg-tertiary)] p-4 text-sm text-[var(--text-secondary)]">
-              <p>
-                Operating costs / month:{" "}
-                <span className="font-mono-data text-[var(--text-primary)]">
-                  {fmt(operatingCosts)}
-                </span>
-              </p>
-            </div>
           </div>
           <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--accent-primary-light)]/40 p-5 dark:bg-[var(--accent-primary-light)]/20">
-            <Row label="Monthly Revenue" value={fmt(monthlyRevenue)} />
-            <Row label="Monthly Profit" value={fmt(monthlyProfit)} highlight={monthlyProfit >= 0} />
-            <Row label="Actual Margin" value={formatPercent(actualMargin, 1)} />
-            <Row label="Deals for Break-Even" value={String(dealsForBreakeven)} />
+            <Row label="Выручка в месяц (сценарий)" value={fmt(monthlyRevenue)} />
+            <Row label="Прибыль в месяц" value={fmt(monthlyProfit)} highlight={monthlyProfit >= 0} />
+            <Row label="Фактическая маржа" value={formatPercent(actualMargin, 1)} />
+            <Row label="Сделок до безубыточности" value={String(dealsForBreakeven)} />
             <Row
-              label="Revenue for Target Margin"
+              label="Выручка для целевой маржи"
               value={revenueForTargetMargin != null ? fmt(revenueForTargetMargin) : "—"}
             />
           </div>

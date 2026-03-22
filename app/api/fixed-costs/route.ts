@@ -28,10 +28,15 @@ export async function POST(req: Request) {
     if (freq && !["monthly", "quarterly", "yearly"].includes(freq)) {
       return NextResponse.json({ error: "Invalid frequency" }, { status: 400 });
     }
+    let category_id: number | null = null;
+    if (body.category_id != null && body.category_id !== "") {
+      const n = Number(body.category_id);
+      if (Number.isFinite(n) && n > 0) category_id = n;
+    }
     const row = await createFixedCost({
       name: body.name.trim(),
       amount,
-      category_id: body.category_id != null ? Number(body.category_id) : null,
+      category_id,
       frequency: freq,
     });
     return NextResponse.json(row, { status: 201 });

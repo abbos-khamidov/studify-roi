@@ -7,10 +7,11 @@ import { useCurrency } from "@/components/currency-provider";
 import { AIChat } from "@/components/dashboard/AIChat";
 import { BreakEvenPanel } from "@/components/dashboard/BreakEvenPanel";
 import { CategoryBreakdown } from "@/components/dashboard/CategoryBreakdown";
+import { ExpenseStructureChart } from "@/components/dashboard/ExpenseStructureChart";
 import { IncomeBarChart } from "@/components/dashboard/IncomeBarChart";
 import { KPICards } from "@/components/dashboard/KPICards";
-import { ProfitAreaChart } from "@/components/dashboard/ProfitAreaChart";
 import { ProfitChart } from "@/components/dashboard/ProfitChart";
+import { RevenueVsTargetChart } from "@/components/dashboard/RevenueVsTargetChart";
 import { ROICalculator } from "@/components/dashboard/ROICalculator";
 import { Card } from "@/components/ui/Card";
 
@@ -82,7 +83,7 @@ export function DashboardClient() {
                 Внесите фиксированные расходы
               </p>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                Аренда, зарплаты, подписки — на странице транзакций.
+                Аренда, зарплаты, подписки — на странице «Транзакции».
               </p>
               <Link
                 href="/transactions"
@@ -115,15 +116,27 @@ export function DashboardClient() {
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <ProfitChart data={data.profit.trend} currency={data.currency} />
           <div className="grid gap-6 lg:grid-cols-2">
-            <CategoryBreakdown
-              expenses={data.expenses.byCategory}
+            <ExpenseStructureChart
+              trend={data.profit.trend}
+              fixedMonthlyEquivalent={data.expenses.fixedTotal}
               currency={data.currency}
             />
+            <RevenueVsTargetChart
+              revenueByMonth={data.revenue.byMonth}
+              trendLabels={data.profit.trend.map(({ month, label }) => ({ month, label }))}
+              monthlyTarget={data.monthly_revenue_target}
+              currency={data.currency}
+            />
+          </div>
+
+          <ProfitChart data={data.profit.trend} currency={data.currency} />
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <CategoryBreakdown expenses={data.expenses.byCategory} currency={data.currency} />
             <IncomeBarChart income={data.revenue.byCategory} currency={data.currency} />
           </div>
-          <ProfitAreaChart data={data.profit.trend} currency={data.currency} />
+
           <div className="grid gap-6 lg:grid-cols-2">
             <BreakEvenPanel
               currentProgress={data.breakEven.currentProgress}
@@ -131,9 +144,13 @@ export function DashboardClient() {
               revenue={data.revenue.total}
               currency={data.currency}
             />
-            <div className="hidden lg:block" />
+            <ROICalculator
+              totalMonthlyExpenses={data.expenses.total}
+              fixedMonthlyEquivalent={data.expenses.fixedTotal}
+              variableExpensesThisMonth={data.expenses.variable}
+              currency={data.currency}
+            />
           </div>
-          <ROICalculator operatingCosts={data.expenses.fixedTotal} currency={data.currency} />
         </div>
         <div className="xl:col-span-1">
           <AIChat />

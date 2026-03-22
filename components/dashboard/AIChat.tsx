@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Send } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { CEOHint } from "@/components/ui/CEOHint";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -47,7 +48,11 @@ export function AIChat() {
         <h3 className="font-display text-lg font-bold text-[var(--text-primary)]">
           AI-аналитик
         </h3>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">
+        <CEOHint>
+          Ответы строятся по вашим же цифрам из дашборда (выручка, расходы, фикс, категории). Не заменяет
+          бухгалтера, но помогает сформулировать вопросы к цифрам.
+        </CEOHint>
+        <p className="mt-2 text-sm text-[var(--text-muted)]">
           Контекст: последние данные и фиксированные расходы. Добавьте ключ OpenAI в настройках.
         </p>
         <div className="mt-4 flex-1 space-y-3 overflow-y-auto rounded-xl bg-[var(--bg-tertiary)]/60 p-3">

@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/Card";
+import { CEOHint } from "@/components/ui/CEOHint";
 import { formatCurrency, formatPercent } from "@/lib/format";
 
 export function BreakEvenPanel({
@@ -25,6 +26,10 @@ export function BreakEvenPanel({
         <p className="mt-1 text-sm text-[var(--text-muted)]">
           Текущая выручка к целевой ({formatCurrency(target, currency)})
         </p>
+        <CEOHint>
+          Цель задаётся в настройках как «желаемая выручка за месяц». Полоска показывает, какую долю от этой
+          цели вы уже закрыли фактическими доходами за текущий месяц.
+        </CEOHint>
         {target <= 0 ? (
           <p className="mt-6 text-sm text-[var(--text-secondary)]">
             Укажите месячную цель выручки в настройках.

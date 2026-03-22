@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { TrendingDown, TrendingUp, Wallet, Percent, Target, Scale } from "lucide-react";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { Card } from "@/components/ui/Card";
+import { CEOHint } from "@/components/ui/CEOHint";
 
 type Analytics = {
   currency: string;
@@ -104,7 +105,13 @@ export function KPICards({ data }: { data: Analytics }) {
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="space-y-3">
+      <CEOHint>
+        Все суммы — текущий календарный месяц. «Расходы» = переменные транзакции + фиксированные затраты
+        (квартальные и годовые уже переведены в «за месяц»). Сравнение с прошлым месяцем помогает увидеть
+        тренд, а не абсолютную справедливость плана.
+      </CEOHint>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {cards.map((c, i) => {
         const Icon = c.icon;
         return (
@@ -135,6 +142,7 @@ export function KPICards({ data }: { data: Analytics }) {
           </motion.div>
         );
       })}
+      </div>
     </div>
   );
 }

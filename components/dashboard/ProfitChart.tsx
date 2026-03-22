@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import { Card } from "@/components/ui/Card";
+import { CEOHint } from "@/components/ui/CEOHint";
 import { formatCurrency } from "@/lib/format";
 
 type Point = { month: string; label: string; revenue: number; expenses: number; profit: number };
@@ -32,9 +33,13 @@ export function ProfitChart({
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
       <Card className="p-5">
         <h3 className="font-display text-lg font-bold text-[var(--text-primary)]">
-          Revenue vs Expenses
+          Доход и расходы
         </h3>
         <p className="mt-1 text-sm text-[var(--text-muted)]">Последние 12 месяцев</p>
+        <CEOHint>
+          Зелёная линия — выручка по доходам, красная — все расходы (включая фикс за месяц). Там, где линии
+          близко или расходы выше, маржа сжимается.
+        </CEOHint>
         <div className="mt-4 h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>

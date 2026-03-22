@@ -3,7 +3,8 @@
 import { motion } from "framer-motion";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { Card } from "@/components/ui/Card";
-import { formatCurrency } from "@/lib/format";
+import { CEOHint } from "@/components/ui/CEOHint";
+import { asNumber, formatCurrency } from "@/lib/format";
 
 type Cat = { id: number; name: string; color: string; total: number };
 
@@ -14,14 +15,14 @@ export function CategoryBreakdown({
   expenses: Cat[];
   currency: string;
 }) {
-  const data = expenses.filter((e) => e.total > 0);
+  const data = expenses.filter((e) => asNumber(e.total) > 0);
   if (data.length === 0) {
     return (
       <Card className="p-5">
         <h3 className="font-display text-lg font-bold text-[var(--text-primary)]">
-          Expense Breakdown
+          Расходы по категориям
         </h3>
-        <p className="mt-8 text-center text-sm text-[var(--text-muted)]">Нет расходов за период</p>
+        <p className="mt-8 text-center text-sm text-[var(--text-muted)]">Нет переменных расходов за месяц</p>
       </Card>
     );
   }
@@ -30,9 +31,13 @@ export function CategoryBreakdown({
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
       <Card className="p-5">
         <h3 className="font-display text-lg font-bold text-[var(--text-primary)]">
-          Expense Breakdown
+          Расходы по категориям
         </h3>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">По категориям (текущий месяц)</p>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">Только переменные расходы за текущий месяц</p>
+        <CEOHint>
+          Сюда не попадают фиксированные статьи (аренда и т.д.) — они в отдельном блоке и уже учтены в общей
+          цифре расходов наверху. Круг показывает, куда «утекают» операционные траты по статьям.
+        </CEOHint>
         <div className="mt-4 h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
