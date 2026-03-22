@@ -80,12 +80,22 @@ function monthlyEquivalent(amount: number, frequency: string): number {
 }
 
 export async function getFixedCostsMonthlyTotal(): Promise<number> {
+  /** Сумма в SQL: надёжнее чем JS (NUMERIC/string), is_active <> 0 — совместимо с PG smallint/boolean */
   const rows = await sql.query(
-    `SELECT amount, frequency FROM fixed_costs WHERE is_active = 1`,
+    `SELECT COALESCE(SUM(
+        CASE TRIM(LOWER(frequency::text))
+          WHEN 'quarterly' THEN amount::numeric / 3
+          WHEN 'yearly' THEN amount::numeric / 12
+          ELSE amount::numeric
+        END
+      ), 0)::float8 AS total
+     FROM fixed_costs
+     WHERE COALESCE(is_active, 0)::int <> 0`,
     []
   );
-  const list = mapRows<{ amount: number; frequency: string }>(rows as Record<string, unknown>[]);
-  return list.reduce((s, r) => s + monthlyEquivalent(Number(r.amount), r.frequency), 0);
+  const row = mapRow<{ total: unknown }>(rows as Record<string, unknown>[]);
+  const n = Number(row?.total ?? 0);
+  return Number.isFinite(n) ? n : 0;
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -489,6 +499,8 @@ export async function getAnalytics() {
       label: format(m, "MMM yyyy"),
       revenue,
       expenses,
+      /** Только транзакции-расходы; для графика структуры (фикс vs переменные) */
+      variableExpenses: expVar,
       profit: revenue - expenses,
     };
   });
@@ -537,6 +549,7 @@ export async function getAnalytics() {
         label: m.label,
         revenue: m.revenue,
         expenses: m.expenses,
+        variableExpenses: m.variableExpenses,
         profit: m.profit,
       })),
     },

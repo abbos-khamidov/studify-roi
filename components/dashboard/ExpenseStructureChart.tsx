@@ -15,7 +15,12 @@ import { Card } from "@/components/ui/Card";
 import { CEOHint } from "@/components/ui/CEOHint";
 import { formatCurrency } from "@/lib/format";
 
-type TrendPoint = { month: string; label: string; expenses: number };
+type TrendPoint = {
+  month: string;
+  label: string;
+  expenses: number;
+  variableExpenses?: number;
+};
 
 export function ExpenseStructureChart({
   trend,
@@ -26,9 +31,25 @@ export function ExpenseStructureChart({
   fixedMonthlyEquivalent: number;
   currency: string;
 }) {
-  const fixed = fixedMonthlyEquivalent;
+  const fixedProp = Math.max(0, Number(fixedMonthlyEquivalent) || 0);
   const data = trend.map((d) => {
-    const variable = Math.max(0, d.expenses - fixed);
+    const total = Math.max(0, Number(d.expenses) || 0);
+    const varTx =
+      d.variableExpenses != null && Number.isFinite(Number(d.variableExpenses))
+        ? Math.max(0, Number(d.variableExpenses))
+        : null;
+    let fixed: number;
+    let variable: number;
+    if (fixedProp > 0) {
+      fixed = fixedProp;
+      variable = Math.max(0, total - fixedProp);
+    } else if (varTx !== null) {
+      variable = varTx;
+      fixed = Math.max(0, total - varTx);
+    } else {
+      fixed = 0;
+      variable = total;
+    }
     return {
       short: d.label,
       fixed,
