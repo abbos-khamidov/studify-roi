@@ -10,6 +10,8 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Analytics failed" }, { status: 500 });
+    const message =
+      e instanceof Error ? e.message : "Analytics failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

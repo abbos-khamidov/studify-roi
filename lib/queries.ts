@@ -6,7 +6,7 @@ import {
   subMonths,
 } from "date-fns";
 import { type ResultSet } from "@libsql/client";
-import { db } from "./db";
+import { getDb } from "./db";
 
 export type Settings = {
   id: number;
@@ -76,7 +76,7 @@ function monthlyEquivalent(amount: number, frequency: string): number {
 }
 
 export async function getFixedCostsMonthlyTotal(): Promise<number> {
-  const result = await db.execute(
+  const result = await (await getDb()).execute(
     `SELECT amount, frequency FROM fixed_costs WHERE is_active = 1`
   );
   const rows = mapRows<{ amount: number; frequency: string }>(result);
@@ -84,7 +84,7 @@ export async function getFixedCostsMonthlyTotal(): Promise<number> {
 }
 
 export async function getSettings(): Promise<Settings> {
-  const result = await db.execute(`SELECT * FROM settings WHERE id = 1`);
+  const result = await (await getDb()).execute(`SELECT * FROM settings WHERE id = 1`);
   return mapRow<Settings>(result)!;
 }
 
@@ -98,7 +98,7 @@ export async function updateSettings(
 ): Promise<Settings> {
   const cur = await getSettings();
   const next = { ...cur, ...partial, updated_at: new Date().toISOString() };
-  await db.execute({
+  await (await getDb()).execute({
     sql: `UPDATE settings SET
       openai_key = ?,
       currency = ?,
@@ -118,7 +118,7 @@ export async function updateSettings(
 }
 
 export async function resetAllData(): Promise<void> {
-  await db.batch(
+  await (await getDb()).batch(
     [
       { sql: "DELETE FROM transactions", args: [] },
       { sql: "DELETE FROM fixed_costs", args: [] },
@@ -133,7 +133,7 @@ export async function resetAllData(): Promise<void> {
 }
 
 export async function exportAllJson() {
-  const [settingsResult, catResult, txResult, fcResult] = await db.batch(
+  const [settingsResult, catResult, txResult, fcResult] = await (await getDb()).batch(
     [
       { sql: "SELECT * FROM settings WHERE id = 1", args: [] },
       { sql: "SELECT * FROM categories", args: [] },
@@ -165,12 +165,12 @@ export async function listCategories(filters?: {
     args.push(filters.type);
   }
   sql += ` ORDER BY name ASC`;
-  const result = await db.execute({ sql, args });
+  const result = await (await getDb()).execute({ sql, args });
   return mapRows<CategoryRow>(result);
 }
 
 export async function getCategory(id: number): Promise<CategoryRow | undefined> {
-  const result = await db.execute({
+  const result = await (await getDb()).execute({
     sql: `SELECT * FROM categories WHERE id = ?`,
     args: [id],
   });
@@ -183,7 +183,7 @@ export async function createCategory(data: {
   color?: string;
   icon?: string;
 }): Promise<CategoryRow> {
-  const result = await db.execute({
+  const result = await (await getDb()).execute({
     sql: `INSERT INTO categories (name, type, color, icon) VALUES (?, ?, ?, ?)`,
     args: [data.name, data.type, data.color ?? "#F97316", data.icon ?? "folder"],
   });
@@ -203,7 +203,7 @@ export async function updateCategory(
   const cur = await getCategory(id);
   if (!cur) return null;
   const next = { ...cur, ...partial };
-  await db.execute({
+  await (await getDb()).execute({
     sql: `UPDATE categories SET name=?, type=?, color=?, icon=?, is_active=? WHERE id=?`,
     args: [next.name, next.type, next.color, next.icon, next.is_active, id],
   });
@@ -215,7 +215,7 @@ export async function softDeleteCategory(id: number): Promise<CategoryRow | null
 }
 
 export async function listFixedCosts(): Promise<FixedCostRow[]> {
-  const result = await db.execute(`SELECT * FROM fixed_costs ORDER BY name ASC`);
+  const result = await (await getDb()).execute(`SELECT * FROM fixed_costs ORDER BY name ASC`);
   return mapRows<FixedCostRow>(result);
 }
 
@@ -225,7 +225,7 @@ export async function createFixedCost(data: {
   category_id?: number | null;
   frequency?: "monthly" | "quarterly" | "yearly";
 }): Promise<FixedCostRow> {
-  const result = await db.execute({
+  const result = await (await getDb()).execute({
     sql: `INSERT INTO fixed_costs (name, amount, category_id, frequency) VALUES (?, ?, ?, ?)`,
     args: [
       data.name,
@@ -235,7 +235,7 @@ export async function createFixedCost(data: {
     ],
   });
   const id = Number(result.lastInsertRowid);
-  const r = await db.execute({ sql: `SELECT * FROM fixed_costs WHERE id = ?`, args: [id] });
+  const r = await (await getDb()).execute({ sql: `SELECT * FROM fixed_costs WHERE id = ?`, args: [id] });
   return mapRow<FixedCostRow>(r)!;
 }
 
@@ -249,23 +249,23 @@ export async function updateFixedCost(
     is_active: number;
   }>
 ): Promise<FixedCostRow | null> {
-  const curResult = await db.execute({
+  const curResult = await (await getDb()).execute({
     sql: `SELECT * FROM fixed_costs WHERE id = ?`,
     args: [id],
   });
   const cur = mapRow<FixedCostRow>(curResult);
   if (!cur) return null;
   const next = { ...cur, ...partial };
-  await db.execute({
+  await (await getDb()).execute({
     sql: `UPDATE fixed_costs SET name=?, amount=?, category_id=?, frequency=?, is_active=? WHERE id=?`,
     args: [next.name, next.amount, next.category_id, next.frequency, next.is_active, id],
   });
-  const updated = await db.execute({ sql: `SELECT * FROM fixed_costs WHERE id = ?`, args: [id] });
+  const updated = await (await getDb()).execute({ sql: `SELECT * FROM fixed_costs WHERE id = ?`, args: [id] });
   return mapRow<FixedCostRow>(updated)!;
 }
 
 export async function deleteFixedCost(id: number): Promise<void> {
-  await db.execute({ sql: `DELETE FROM fixed_costs WHERE id = ?`, args: [id] });
+  await (await getDb()).execute({ sql: `DELETE FROM fixed_costs WHERE id = ?`, args: [id] });
 }
 
 const TX_SORT_SQL: Record<string, string> = {
@@ -314,7 +314,7 @@ export async function listTransactions(params: {
     qparams.push(params.to);
   }
 
-  const [countResult, rowsResult] = await db.batch(
+  const [countResult, rowsResult] = await (await getDb()).batch(
     [
       {
         sql: `SELECT COUNT(*) as c FROM transactions t ${where}`,
@@ -344,7 +344,7 @@ export async function listTransactions(params: {
 }
 
 export async function getTransaction(id: number): Promise<Record<string, unknown> | undefined> {
-  const result = await db.execute({
+  const result = await (await getDb()).execute({
     sql: `SELECT t.*, c.name as category_name FROM transactions t
           LEFT JOIN categories c ON c.id = t.category_id WHERE t.id = ?`,
     args: [id],
@@ -360,7 +360,7 @@ export async function createTransaction(data: {
   date: string;
   is_recurring?: number;
 }): Promise<Record<string, unknown> | undefined> {
-  const result = await db.execute({
+  const result = await (await getDb()).execute({
     sql: `INSERT INTO transactions (type, amount, description, category_id, date, is_recurring)
           VALUES (?, ?, ?, ?, ?, ?)`,
     args: [
@@ -386,14 +386,14 @@ export async function updateTransaction(
     is_recurring: number;
   }>
 ): Promise<Record<string, unknown> | null> {
-  const curResult = await db.execute({
+  const curResult = await (await getDb()).execute({
     sql: `SELECT * FROM transactions WHERE id = ?`,
     args: [id],
   });
   const cur = mapRow<TransactionRow>(curResult);
   if (!cur) return null;
   const next = { ...cur, ...partial };
-  await db.execute({
+  await (await getDb()).execute({
     sql: `UPDATE transactions SET type=?, amount=?, description=?, category_id=?, date=?, is_recurring=? WHERE id=?`,
     args: [
       next.type,
@@ -409,7 +409,7 @@ export async function updateTransaction(
 }
 
 export async function deleteTransaction(id: number): Promise<void> {
-  await db.execute({ sql: `DELETE FROM transactions WHERE id = ?`, args: [id] });
+  await (await getDb()).execute({ sql: `DELETE FROM transactions WHERE id = ?`, args: [id] });
 }
 
 async function sumTxRange(
@@ -417,7 +417,7 @@ async function sumTxRange(
   from: string,
   to: string
 ): Promise<number> {
-  const result = await db.execute({
+  const result = await (await getDb()).execute({
     sql: `SELECT COALESCE(SUM(amount), 0) as s FROM transactions WHERE type = ? AND date >= ? AND date <= ?`,
     args: [type, from, to],
   });
@@ -425,7 +425,7 @@ async function sumTxRange(
 }
 
 async function avgIncomeAmount(from: string, to: string): Promise<number> {
-  const result = await db.execute({
+  const result = await (await getDb()).execute({
     sql: `SELECT COALESCE(AVG(amount), 0) as a, COUNT(*) as c FROM transactions WHERE type = 'income' AND date >= ? AND date <= ?`,
     args: [from, to],
   });
@@ -438,7 +438,7 @@ async function categoryTotals(
   from: string,
   to: string
 ): Promise<{ id: number; name: string; color: string; total: number }[]> {
-  const result = await db.execute({
+  const result = await (await getDb()).execute({
     sql: `SELECT c.id, c.name, c.color, COALESCE(SUM(t.amount), 0) as total
           FROM transactions t
           JOIN categories c ON c.id = t.category_id AND c.is_active = 1
@@ -583,7 +583,7 @@ export async function listCategoriesWithStats(filters?: {
     args.push(filters.type);
   }
   sql += ` GROUP BY c.id ORDER BY c.name ASC`;
-  const result = await db.execute({ sql, args });
+  const result = await (await getDb()).execute({ sql, args });
   return mapRows<CategoryRow & { transaction_count: number; total_amount: number }>(result);
 }
 
