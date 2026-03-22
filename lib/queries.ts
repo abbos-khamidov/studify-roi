@@ -5,8 +5,7 @@ import {
   startOfMonth,
   subMonths,
 } from "date-fns";
-import { type ResultSet } from "@libsql/client";
-import { db } from "./db";
+import { sql } from "./db";
 
 export type Settings = {
   id: number;
@@ -49,7 +48,6 @@ export type FixedCostRow = {
   created_at: string;
 };
 
-/** Turso/libsql может отдавать INTEGER как BigInt — ломает JSON.stringify в NextResponse */
 function normalizeCell(v: unknown): unknown {
   if (typeof v === "bigint") {
     const n = Number(v);
@@ -58,24 +56,21 @@ function normalizeCell(v: unknown): unknown {
   return v;
 }
 
-function mapRows<T>(result: ResultSet): T[] {
-  return result.rows.map((row) => {
-    const obj: Record<string, unknown> = {};
-    result.columns.forEach((col, i) => {
-      obj[col] = normalizeCell(row[i]);
-    });
-    return obj as unknown as T;
-  });
+function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
+  const obj: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(row)) {
+    obj[k] = normalizeCell(v);
+  }
+  return obj;
 }
 
-function mapRow<T>(result: ResultSet): T | undefined {
-  if (result.rows.length === 0) return undefined;
-  const row = result.rows[0];
-  const obj: Record<string, unknown> = {};
-  result.columns.forEach((col, i) => {
-    obj[col] = normalizeCell(row[i]);
-  });
-  return obj as unknown as T;
+function mapRows<T>(rows: Record<string, unknown>[]): T[] {
+  return rows.map((row) => normalizeRow(row) as unknown as T);
+}
+
+function mapRow<T>(rows: Record<string, unknown>[]): T | undefined {
+  if (rows.length === 0) return undefined;
+  return normalizeRow(rows[0]) as unknown as T;
 }
 
 function monthlyEquivalent(amount: number, frequency: string): number {
@@ -85,20 +80,17 @@ function monthlyEquivalent(amount: number, frequency: string): number {
 }
 
 export async function getFixedCostsMonthlyTotal(): Promise<number> {
-  const result = await db.execute({
-    sql: `SELECT amount, frequency FROM fixed_costs WHERE is_active = 1`,
-    args: [],
-  });
-  const rows = mapRows<{ amount: number; frequency: string }>(result);
-  return rows.reduce((s, r) => s + monthlyEquivalent(Number(r.amount), r.frequency), 0);
+  const rows = await sql.query(
+    `SELECT amount, frequency FROM fixed_costs WHERE is_active = 1`,
+    []
+  );
+  const list = mapRows<{ amount: number; frequency: string }>(rows as Record<string, unknown>[]);
+  return list.reduce((s, r) => s + monthlyEquivalent(Number(r.amount), r.frequency), 0);
 }
 
 export async function getSettings(): Promise<Settings> {
-  const result = await db.execute({
-    sql: `SELECT * FROM settings WHERE id = 1`,
-    args: [],
-  });
-  return mapRow<Settings>(result)!;
+  const rows = await sql.query(`SELECT * FROM settings WHERE id = 1`, []);
+  return mapRow<Settings>(rows as Record<string, unknown>[])!;
 }
 
 export async function updateSettings(
@@ -111,52 +103,45 @@ export async function updateSettings(
 ): Promise<Settings> {
   const cur = await getSettings();
   const next = { ...cur, ...partial, updated_at: new Date().toISOString() };
-  await db.execute({
-    sql: `UPDATE settings SET
-      openai_key = ?,
-      currency = ?,
-      company_name = ?,
-      monthly_revenue_target = ?,
-      updated_at = ?
+  await sql.query(
+    `UPDATE settings SET
+      openai_key = $1,
+      currency = $2,
+      company_name = $3,
+      monthly_revenue_target = $4,
+      updated_at = $5
     WHERE id = 1`,
-    args: [
+    [
       next.openai_key,
       next.currency,
       next.company_name,
       next.monthly_revenue_target,
       next.updated_at,
-    ],
-  });
+    ]
+  );
   return getSettings();
 }
 
 export async function resetAllData(): Promise<void> {
-  // Не используем batch(): на Turso HTTP иногда даёт 400 (SQL cache / hrana)
-  await db.execute({ sql: "DELETE FROM transactions", args: [] });
-  await db.execute({ sql: "DELETE FROM fixed_costs", args: [] });
-  await db.execute({ sql: "DELETE FROM categories", args: [] });
-  await db.execute({
-    sql: `UPDATE settings SET openai_key = '', currency = 'USD', company_name = 'Studify', monthly_revenue_target = 0, updated_at = CURRENT_TIMESTAMP WHERE id = 1`,
-    args: [],
-  });
+  await sql.query(`DELETE FROM transactions`, []);
+  await sql.query(`DELETE FROM fixed_costs`, []);
+  await sql.query(`DELETE FROM categories`, []);
+  await sql.query(
+    `UPDATE settings SET openai_key = '', currency = 'USD', company_name = 'Studify', monthly_revenue_target = 0, updated_at = NOW() WHERE id = 1`,
+    []
+  );
 }
 
 export async function exportAllJson() {
-  const settingsResult = await db.execute({
-    sql: "SELECT * FROM settings WHERE id = 1",
-    args: [],
-  });
-  const catResult = await db.execute({ sql: "SELECT * FROM categories", args: [] });
-  const txResult = await db.execute({
-    sql: "SELECT * FROM transactions ORDER BY date DESC",
-    args: [],
-  });
-  const fcResult = await db.execute({ sql: "SELECT * FROM fixed_costs", args: [] });
+  const settingsRows = await sql.query(`SELECT * FROM settings WHERE id = 1`, []);
+  const catRows = await sql.query(`SELECT * FROM categories`, []);
+  const txRows = await sql.query(`SELECT * FROM transactions ORDER BY date DESC`, []);
+  const fcRows = await sql.query(`SELECT * FROM fixed_costs`, []);
   return {
-    settings: mapRow<Settings>(settingsResult)!,
-    categories: mapRows<CategoryRow>(catResult),
-    transactions: mapRows<TransactionRow>(txResult),
-    fixed_costs: mapRows<FixedCostRow>(fcResult),
+    settings: mapRow<Settings>(settingsRows as Record<string, unknown>[])!,
+    categories: mapRows<CategoryRow>(catRows as Record<string, unknown>[]),
+    transactions: mapRows<TransactionRow>(txRows as Record<string, unknown>[]),
+    fixed_costs: mapRows<FixedCostRow>(fcRows as Record<string, unknown>[]),
     exported_at: new Date().toISOString(),
   };
 }
@@ -165,26 +150,24 @@ export async function listCategories(filters?: {
   type?: string;
   includeInactive?: boolean;
 }): Promise<CategoryRow[]> {
-  let sql = `SELECT * FROM categories WHERE 1=1`;
-  const args: (string | number)[] = [];
+  let q = `SELECT * FROM categories WHERE 1=1`;
+  const args: unknown[] = [];
+  let i = 1;
   if (!filters?.includeInactive) {
-    sql += ` AND is_active = 1`;
+    q += ` AND is_active = 1`;
   }
   if (filters?.type && (filters.type === "income" || filters.type === "expense")) {
-    sql += ` AND type = ?`;
+    q += ` AND type = $${i++}`;
     args.push(filters.type);
   }
-  sql += ` ORDER BY name ASC`;
-  const result = await db.execute({ sql, args });
-  return mapRows<CategoryRow>(result);
+  q += ` ORDER BY name ASC`;
+  const rows = await sql.query(q, args);
+  return mapRows<CategoryRow>(rows as Record<string, unknown>[]);
 }
 
 export async function getCategory(id: number): Promise<CategoryRow | undefined> {
-  const result = await db.execute({
-    sql: `SELECT * FROM categories WHERE id = ?`,
-    args: [id],
-  });
-  return mapRow<CategoryRow>(result);
+  const rows = await sql.query(`SELECT * FROM categories WHERE id = $1`, [id]);
+  return mapRow<CategoryRow>(rows as Record<string, unknown>[]);
 }
 
 export async function createCategory(data: {
@@ -193,11 +176,11 @@ export async function createCategory(data: {
   color?: string;
   icon?: string;
 }): Promise<CategoryRow> {
-  const result = await db.execute({
-    sql: `INSERT INTO categories (name, type, color, icon) VALUES (?, ?, ?, ?)`,
-    args: [data.name, data.type, data.color ?? "#F97316", data.icon ?? "folder"],
-  });
-  return (await getCategory(Number(result.lastInsertRowid)))!;
+  const rows = await sql.query(
+    `INSERT INTO categories (name, type, color, icon) VALUES ($1, $2, $3, $4) RETURNING *`,
+    [data.name, data.type, data.color ?? "#F97316", data.icon ?? "folder"]
+  );
+  return mapRow<CategoryRow>(rows as Record<string, unknown>[])!;
 }
 
 export async function updateCategory(
@@ -213,10 +196,10 @@ export async function updateCategory(
   const cur = await getCategory(id);
   if (!cur) return null;
   const next = { ...cur, ...partial };
-  await db.execute({
-    sql: `UPDATE categories SET name=?, type=?, color=?, icon=?, is_active=? WHERE id=?`,
-    args: [next.name, next.type, next.color, next.icon, next.is_active, id],
-  });
+  await sql.query(
+    `UPDATE categories SET name=$1, type=$2, color=$3, icon=$4, is_active=$5 WHERE id=$6`,
+    [next.name, next.type, next.color, next.icon, next.is_active, id]
+  );
   return getCategory(id) as Promise<CategoryRow>;
 }
 
@@ -225,11 +208,8 @@ export async function softDeleteCategory(id: number): Promise<CategoryRow | null
 }
 
 export async function listFixedCosts(): Promise<FixedCostRow[]> {
-  const result = await db.execute({
-    sql: `SELECT * FROM fixed_costs ORDER BY name ASC`,
-    args: [],
-  });
-  return mapRows<FixedCostRow>(result);
+  const rows = await sql.query(`SELECT * FROM fixed_costs ORDER BY name ASC`, []);
+  return mapRows<FixedCostRow>(rows as Record<string, unknown>[]);
 }
 
 export async function createFixedCost(data: {
@@ -238,18 +218,11 @@ export async function createFixedCost(data: {
   category_id?: number | null;
   frequency?: "monthly" | "quarterly" | "yearly";
 }): Promise<FixedCostRow> {
-  const result = await db.execute({
-    sql: `INSERT INTO fixed_costs (name, amount, category_id, frequency) VALUES (?, ?, ?, ?)`,
-    args: [
-      data.name,
-      data.amount,
-      data.category_id ?? null,
-      data.frequency ?? "monthly",
-    ],
-  });
-  const id = Number(result.lastInsertRowid);
-  const r = await db.execute({ sql: `SELECT * FROM fixed_costs WHERE id = ?`, args: [id] });
-  return mapRow<FixedCostRow>(r)!;
+  const rows = await sql.query(
+    `INSERT INTO fixed_costs (name, amount, category_id, frequency) VALUES ($1, $2, $3, $4) RETURNING *`,
+    [data.name, data.amount, data.category_id ?? null, data.frequency ?? "monthly"]
+  );
+  return mapRow<FixedCostRow>(rows as Record<string, unknown>[])!;
 }
 
 export async function updateFixedCost(
@@ -262,23 +235,20 @@ export async function updateFixedCost(
     is_active: number;
   }>
 ): Promise<FixedCostRow | null> {
-  const curResult = await db.execute({
-    sql: `SELECT * FROM fixed_costs WHERE id = ?`,
-    args: [id],
-  });
-  const cur = mapRow<FixedCostRow>(curResult);
+  const curRows = await sql.query(`SELECT * FROM fixed_costs WHERE id = $1`, [id]);
+  const cur = mapRow<FixedCostRow>(curRows as Record<string, unknown>[]);
   if (!cur) return null;
   const next = { ...cur, ...partial };
-  await db.execute({
-    sql: `UPDATE fixed_costs SET name=?, amount=?, category_id=?, frequency=?, is_active=? WHERE id=?`,
-    args: [next.name, next.amount, next.category_id, next.frequency, next.is_active, id],
-  });
-  const updated = await db.execute({ sql: `SELECT * FROM fixed_costs WHERE id = ?`, args: [id] });
-  return mapRow<FixedCostRow>(updated)!;
+  await sql.query(
+    `UPDATE fixed_costs SET name=$1, amount=$2, category_id=$3, frequency=$4, is_active=$5 WHERE id=$6`,
+    [next.name, next.amount, next.category_id, next.frequency, next.is_active, id]
+  );
+  const updated = await sql.query(`SELECT * FROM fixed_costs WHERE id = $1`, [id]);
+  return mapRow<FixedCostRow>(updated as Record<string, unknown>[])!;
 }
 
 export async function deleteFixedCost(id: number): Promise<void> {
-  await db.execute({ sql: `DELETE FROM fixed_costs WHERE id = ?`, args: [id] });
+  await sql.query(`DELETE FROM fixed_costs WHERE id = $1`, [id]);
 }
 
 const TX_SORT_SQL: Record<string, string> = {
@@ -309,41 +279,44 @@ export async function listTransactions(params: {
   const order = params.order === "asc" ? "ASC" : "DESC";
 
   let where = `WHERE 1=1`;
-  const qparams: (string | number)[] = [];
+  const qparams: unknown[] = [];
+  let i = 1;
   if (params.type === "income" || params.type === "expense") {
-    where += ` AND t.type = ?`;
+    where += ` AND t.type = $${i++}`;
     qparams.push(params.type);
   }
   if (params.category_id != null) {
-    where += ` AND t.category_id = ?`;
+    where += ` AND t.category_id = $${i++}`;
     qparams.push(params.category_id);
   }
   if (params.from) {
-    where += ` AND t.date >= ?`;
+    where += ` AND t.date >= $${i++}::date`;
     qparams.push(params.from);
   }
   if (params.to) {
-    where += ` AND t.date <= ?`;
+    where += ` AND t.date <= $${i++}::date`;
     qparams.push(params.to);
   }
 
-  const countResult = await db.execute({
-    sql: `SELECT COUNT(*) as c FROM transactions t ${where}`,
-    args: qparams,
-  });
-  const rowsResult = await db.execute({
-    sql: `SELECT t.*, c.name as category_name, c.color as category_color
+  const countRows = await sql.query(
+    `SELECT COUNT(*)::bigint AS c FROM transactions t ${where}`,
+    qparams
+  );
+  const limitPh = `$${i++}`;
+  const offsetPh = `$${i++}`;
+  const rowsResult = await sql.query(
+    `SELECT t.*, c.name AS category_name, c.color AS category_color
           FROM transactions t
           LEFT JOIN categories c ON c.id = t.category_id
           ${where}
           ORDER BY ${sort} ${order}
-          LIMIT ? OFFSET ?`,
-    args: [...qparams, limit, offset],
-  });
+          LIMIT ${limitPh} OFFSET ${offsetPh}`,
+    [...qparams, limit, offset]
+  );
 
-  const total = Number(mapRow<{ c: number }>(countResult)!.c);
+  const total = Number(mapRow<{ c: number }>(countRows as Record<string, unknown>[])!.c);
   return {
-    items: mapRows(rowsResult),
+    items: mapRows(rowsResult as Record<string, unknown>[]),
     total,
     page,
     limit,
@@ -352,12 +325,12 @@ export async function listTransactions(params: {
 }
 
 export async function getTransaction(id: number): Promise<Record<string, unknown> | undefined> {
-  const result = await db.execute({
-    sql: `SELECT t.*, c.name as category_name FROM transactions t
-          LEFT JOIN categories c ON c.id = t.category_id WHERE t.id = ?`,
-    args: [id],
-  });
-  return mapRow<Record<string, unknown>>(result);
+  const rows = await sql.query(
+    `SELECT t.*, c.name AS category_name FROM transactions t
+          LEFT JOIN categories c ON c.id = t.category_id WHERE t.id = $1`,
+    [id]
+  );
+  return mapRow<Record<string, unknown>>(rows as Record<string, unknown>[]);
 }
 
 export async function createTransaction(data: {
@@ -368,19 +341,20 @@ export async function createTransaction(data: {
   date: string;
   is_recurring?: number;
 }): Promise<Record<string, unknown> | undefined> {
-  const result = await db.execute({
-    sql: `INSERT INTO transactions (type, amount, description, category_id, date, is_recurring)
-          VALUES (?, ?, ?, ?, ?, ?)`,
-    args: [
+  const inserted = await sql.query(
+    `INSERT INTO transactions (type, amount, description, category_id, date, is_recurring)
+          VALUES ($1, $2, $3, $4, $5::date, $6) RETURNING id`,
+    [
       data.type,
       data.amount,
       data.description ?? null,
       data.category_id ?? null,
       data.date,
       data.is_recurring ?? 0,
-    ],
-  });
-  return getTransaction(Number(result.lastInsertRowid));
+    ]
+  );
+  const id = Number((inserted[0] as Record<string, unknown>).id);
+  return getTransaction(id);
 }
 
 export async function updateTransaction(
@@ -394,16 +368,13 @@ export async function updateTransaction(
     is_recurring: number;
   }>
 ): Promise<Record<string, unknown> | null> {
-  const curResult = await db.execute({
-    sql: `SELECT * FROM transactions WHERE id = ?`,
-    args: [id],
-  });
-  const cur = mapRow<TransactionRow>(curResult);
+  const curRows = await sql.query(`SELECT * FROM transactions WHERE id = $1`, [id]);
+  const cur = mapRow<TransactionRow>(curRows as Record<string, unknown>[]);
   if (!cur) return null;
   const next = { ...cur, ...partial };
-  await db.execute({
-    sql: `UPDATE transactions SET type=?, amount=?, description=?, category_id=?, date=?, is_recurring=? WHERE id=?`,
-    args: [
+  await sql.query(
+    `UPDATE transactions SET type=$1, amount=$2, description=$3, category_id=$4, date=$5::date, is_recurring=$6 WHERE id=$7`,
+    [
       next.type,
       next.amount,
       next.description,
@@ -411,29 +382,30 @@ export async function updateTransaction(
       next.date,
       next.is_recurring,
       id,
-    ],
-  });
+    ]
+  );
   return getTransaction(id) as Promise<Record<string, unknown>>;
 }
 
 export async function deleteTransaction(id: number): Promise<void> {
-  await db.execute({ sql: `DELETE FROM transactions WHERE id = ?`, args: [id] });
+  await sql.query(`DELETE FROM transactions WHERE id = $1`, [id]);
 }
 
-/** Один запрос на весь диапазон вместо N×2 sumTxRange (Turso HTTP не любит параллель). */
 async function transactionsTotalsByMonthAndType(
   from: string,
   to: string
 ): Promise<Map<string, { income: number; expense: number }>> {
-  const result = await db.execute({
-    sql: `SELECT strftime('%Y-%m', date) AS month, type, COALESCE(SUM(amount), 0) AS total
+  const rows = await sql.query(
+    `SELECT to_char(date, 'YYYY-MM') AS month, type, COALESCE(SUM(amount), 0)::numeric AS total
           FROM transactions
-          WHERE date >= ? AND date <= ?
-          GROUP BY strftime('%Y-%m', date), type`,
-    args: [from, to],
-  });
+          WHERE date >= $1::date AND date <= $2::date
+          GROUP BY to_char(date, 'YYYY-MM'), type`,
+    [from, to]
+  );
   const map = new Map<string, { income: number; expense: number }>();
-  for (const row of mapRows<{ month: string; type: string; total: number }>(result)) {
+  for (const row of mapRows<{ month: string; type: string; total: number }>(
+    rows as Record<string, unknown>[]
+  )) {
     const m = String(row.month);
     if (!map.has(m)) map.set(m, { income: 0, expense: 0 });
     const b = map.get(m)!;
@@ -445,11 +417,11 @@ async function transactionsTotalsByMonthAndType(
 }
 
 async function avgIncomeAmount(from: string, to: string): Promise<number> {
-  const result = await db.execute({
-    sql: `SELECT COALESCE(AVG(amount), 0) as a, COUNT(*) as c FROM transactions WHERE type = 'income' AND date >= ? AND date <= ?`,
-    args: [from, to],
-  });
-  const row = mapRow<{ a: number; c: number }>(result)!;
+  const rows = await sql.query(
+    `SELECT COALESCE(AVG(amount), 0)::numeric AS a, COUNT(*)::bigint AS c FROM transactions WHERE type = 'income' AND date >= $1::date AND date <= $2::date`,
+    [from, to]
+  );
+  const row = mapRow<{ a: number; c: number }>(rows as Record<string, unknown>[])!;
   return Number(row.c) > 0 ? Number(row.a) : 0;
 }
 
@@ -458,16 +430,18 @@ async function categoryTotals(
   from: string,
   to: string
 ): Promise<{ id: number; name: string; color: string; total: number }[]> {
-  const result = await db.execute({
-    sql: `SELECT c.id, c.name, c.color, COALESCE(SUM(t.amount), 0) as total
+  const rows = await sql.query(
+    `SELECT c.id, c.name, c.color, COALESCE(SUM(t.amount), 0)::numeric AS total
           FROM transactions t
           JOIN categories c ON c.id = t.category_id AND c.is_active = 1
-          WHERE t.type = ? AND t.date >= ? AND t.date <= ?
-          GROUP BY c.id
+          WHERE t.type = $1 AND t.date >= $2::date AND t.date <= $3::date
+          GROUP BY c.id, c.name, c.color
           ORDER BY total DESC`,
-    args: [type, from, to],
-  });
-  return mapRows<{ id: number; name: string; color: string; total: number }>(result);
+    [type, from, to]
+  );
+  return mapRows<{ id: number; name: string; color: string; total: number }>(
+    rows as Record<string, unknown>[]
+  );
 }
 
 export async function getAnalytics() {
@@ -526,7 +500,7 @@ export async function getAnalytics() {
   const dealsNeededBreakEven =
     avgDealVal > 0 ? Math.ceil(revenueGap / avgDealVal) : revenueGap > 0 ? null : 0;
 
-  const target = settings.monthly_revenue_target || 0;
+  const target = Number(settings.monthly_revenue_target) || 0;
   const currentProgress = target > 0 ? Math.min(1, revMonth / target) : 0;
   const revenueNeededForTarget = Math.max(0, target - revMonth);
 
@@ -581,24 +555,27 @@ export async function listCategoriesWithStats(filters?: {
   type?: string;
   includeInactive?: boolean;
 }) {
-  let sql = `
+  let q = `
     SELECT c.*,
-      COUNT(t.id) AS transaction_count,
-      COALESCE(SUM(t.amount), 0) AS total_amount
+      COUNT(t.id)::bigint AS transaction_count,
+      COALESCE(SUM(t.amount), 0)::numeric AS total_amount
     FROM categories c
     LEFT JOIN transactions t ON t.category_id = c.id
     WHERE 1=1`;
-  const args: (string | number)[] = [];
+  const args: unknown[] = [];
+  let i = 1;
   if (!filters?.includeInactive) {
-    sql += ` AND c.is_active = 1`;
+    q += ` AND c.is_active = 1`;
   }
   if (filters?.type && (filters.type === "income" || filters.type === "expense")) {
-    sql += ` AND c.type = ?`;
+    q += ` AND c.type = $${i++}`;
     args.push(filters.type);
   }
-  sql += ` GROUP BY c.id ORDER BY c.name ASC`;
-  const result = await db.execute({ sql, args });
-  return mapRows<CategoryRow & { transaction_count: number; total_amount: number }>(result);
+  q += ` GROUP BY c.id ORDER BY c.name ASC`;
+  const rows = await sql.query(q, args);
+  return mapRows<CategoryRow & { transaction_count: number; total_amount: number }>(
+    rows as Record<string, unknown>[]
+  );
 }
 
 export async function getChatContext() {
