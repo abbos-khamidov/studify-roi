@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
+import { notifyFinanceDataChanged } from "@/lib/finance-invalidate";
 
 type Cat = { id: number; name: string; type: string };
 
@@ -65,6 +66,7 @@ export function TransactionForm({
       setDescription("");
       setRecurring(false);
       onCreated();
+      notifyFinanceDataChanged();
     } catch {
       setErr("Сеть");
     } finally {

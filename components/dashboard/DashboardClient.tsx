@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useCurrency } from "@/components/currency-provider";
+import { FINANCE_DATA_CHANGED_EVENT } from "@/lib/finance-invalidate";
 import { BreakEvenPanel } from "@/components/dashboard/BreakEvenPanel";
 import { CategoryPieToggle } from "@/components/dashboard/CategoryPieToggle";
 import { ExpenseStructureChart } from "@/components/dashboard/ExpenseStructureChart";
@@ -22,24 +23,55 @@ export function DashboardClient() {
   const [fixedN, setFixedN] = useState(0);
   const [hasKey, setHasKey] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const hasLoadedOnce = useRef(false);
+
+  const loadDashboard = useCallback(async () => {
+    setErr(null);
+    const opts: RequestInit = { cache: "no-store" };
+    try {
+      const [aRes, cRes, fRes, sRes] = await Promise.all([
+        fetch("/api/analytics", opts),
+        fetch("/api/categories", opts),
+        fetch("/api/fixed-costs", opts),
+        fetch("/api/settings", opts),
+      ]);
+      const [a, c, f, s] = await Promise.all([
+        aRes.json(),
+        cRes.json(),
+        fRes.json(),
+        sRes.json(),
+      ]);
+      if (a.error) setErr(a.error);
+      else {
+        setData(a);
+        hasLoadedOnce.current = true;
+      }
+      setCats({ length: Array.isArray(c) ? c.length : 0 });
+      setFixedN(Array.isArray(f) ? f.length : 0);
+      setHasKey(Boolean(s.has_openai_key));
+    } catch {
+      if (!hasLoadedOnce.current) setErr("Не удалось загрузить данные");
+    }
+  }, []);
 
   useEffect(() => {
-    setErr(null);
-    Promise.all([
-      fetch("/api/analytics").then((r) => r.json()),
-      fetch("/api/categories").then((r) => r.json()),
-      fetch("/api/fixed-costs").then((r) => r.json()),
-      fetch("/api/settings").then((r) => r.json()),
-    ])
-      .then(([a, c, f, s]) => {
-        if (a.error) setErr(a.error);
-        else setData(a);
-        setCats({ length: Array.isArray(c) ? c.length : 0 });
-        setFixedN(Array.isArray(f) ? f.length : 0);
-        setHasKey(Boolean(s.has_openai_key));
-      })
-      .catch(() => setErr("Не удалось загрузить данные"));
-  }, [currency]);
+    void loadDashboard();
+  }, [currency, loadDashboard]);
+
+  useEffect(() => {
+    const onInvalidate = () => {
+      void loadDashboard();
+    };
+    window.addEventListener(FINANCE_DATA_CHANGED_EVENT, onInvalidate);
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) void loadDashboard();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      window.removeEventListener(FINANCE_DATA_CHANGED_EVENT, onInvalidate);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [loadDashboard]);
 
   if (err || !data) {
     return (
@@ -125,6 +157,7 @@ export function DashboardClient() {
       <CategoryPieToggle
         expenses={data.expenses.byCategory}
         income={data.revenue.byCategory}
+        fixedMonthlyEquivalent={data.expenses.fixedTotal}
         currency={data.currency}
       />
 

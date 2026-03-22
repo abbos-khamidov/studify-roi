@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { formatCurrency } from "@/lib/format";
+import { notifyFinanceDataChanged } from "@/lib/finance-invalidate";
 import { Modal } from "@/components/ui/Modal";
 
 type Row = {
@@ -36,7 +37,7 @@ export function CategoryList({
       filter === "all"
         ? "?stats=1&include_inactive=1"
         : `?stats=1&type=${filter}&include_inactive=1`;
-    const res = await fetch(`/api/categories${q}`);
+    const res = await fetch(`/api/categories${q}`, { cache: "no-store" });
     const data = await res.json();
     setRows(Array.isArray(data) ? data : []);
     setLoading(false);
@@ -59,7 +60,8 @@ export function CategoryList({
       }),
     });
     setEdit(null);
-    load();
+    await load();
+    notifyFinanceDataChanged();
   }
 
   async function confirmDeactivate() {
@@ -70,7 +72,8 @@ export function CategoryList({
       body: JSON.stringify({ is_active: 0 }),
     });
     setDeactivateId(null);
-    load();
+    await load();
+    notifyFinanceDataChanged();
   }
 
   async function confirmDeletePermanent() {
@@ -85,7 +88,8 @@ export function CategoryList({
       return;
     }
     setDeletePermanentId(null);
-    load();
+    await load();
+    notifyFinanceDataChanged();
   }
 
   return (
@@ -185,7 +189,8 @@ export function CategoryList({
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ is_active: 1 }),
                             });
-                            load();
+                            await load();
+                            notifyFinanceDataChanged();
                           }}
                         >
                           Включить

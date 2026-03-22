@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useCurrency } from "@/components/currency-provider";
+import { notifyFinanceDataChanged } from "@/lib/finance-invalidate";
 import { Modal } from "@/components/ui/Modal";
 
 export default function SettingsPage() {
@@ -55,6 +56,7 @@ export default function SettingsPage() {
       setMasked(s.openai_key_masked || "");
       setHasKey(!!s.has_openai_key);
       setMsg("Сохранено");
+      notifyFinanceDataChanged();
       await refresh();
     } catch {
       setMsg("Сеть");

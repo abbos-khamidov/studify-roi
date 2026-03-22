@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency, parseMoneyInput } from "@/lib/format";
+import { notifyFinanceDataChanged } from "@/lib/finance-invalidate";
 import { Plus, Trash2 } from "lucide-react";
 
 type Fixed = {
@@ -31,7 +32,7 @@ export function FixedCostsPanel({
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/fixed-costs");
+      const res = await fetch("/api/fixed-costs", { cache: "no-store" });
       const data = await res.json();
       setItems(Array.isArray(data) ? data : []);
     } catch {
@@ -85,7 +86,8 @@ export function FixedCostsPanel({
       }
       setOpen(false);
       (e.target as HTMLFormElement).reset();
-      load();
+      await load();
+      notifyFinanceDataChanged();
     } catch {
       setFormError("Сеть недоступна");
     } finally {
@@ -99,14 +101,16 @@ export function FixedCostsPanel({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ is_active: f.is_active ? 0 : 1 }),
     });
-    load();
+    await load();
+    notifyFinanceDataChanged();
   }
 
   async function confirmDelete() {
     if (deleteId == null) return;
     await fetch(`/api/fixed-costs/${deleteId}`, { method: "DELETE" });
     setDeleteId(null);
-    load();
+    await load();
+    notifyFinanceDataChanged();
   }
 
   const freqLabel: Record<string, string> = {

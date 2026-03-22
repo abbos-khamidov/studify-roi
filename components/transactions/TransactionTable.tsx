@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency } from "@/lib/format";
+import { notifyFinanceDataChanged } from "@/lib/finance-invalidate";
 import { Pencil, Trash2 } from "lucide-react";
 
 type Row = {
@@ -61,7 +62,7 @@ export function TransactionTable({
     if (filterCat) params.set("category_id", filterCat);
     if (from) params.set("from", from);
     if (to) params.set("to", to);
-    const res = await fetch(`/api/transactions?${params}`);
+    const res = await fetch(`/api/transactions?${params}`, { cache: "no-store" });
     const data = await res.json();
     const list = data?.items;
     setItems(Array.isArray(list) ? list : []);
@@ -88,7 +89,8 @@ export function TransactionTable({
     if (deleteId == null) return;
     await fetch(`/api/transactions/${deleteId}`, { method: "DELETE" });
     setDeleteId(null);
-    load();
+    await load();
+    notifyFinanceDataChanged();
   }
 
   async function saveEdit(e: React.FormEvent<HTMLFormElement>) {
@@ -109,7 +111,8 @@ export function TransactionTable({
     });
     if (res.ok) {
       setEditRow(null);
-      load();
+      await load();
+      notifyFinanceDataChanged();
     }
   }
 

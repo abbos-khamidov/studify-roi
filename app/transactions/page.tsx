@@ -69,6 +69,9 @@ export default function TransactionsPage() {
         </aside>
       </div>
 
+      <p className="text-sm text-[var(--text-muted)]">
+        В таблице ниже показаны только операции выбранной вкладки («Доходы» или «Расходы»), не все сразу.
+      </p>
       <TransactionTable currency={currency} categories={categories} tabType={tab} key={`${tab}-${tick}`} />
 
       <FixedCostsPanel currency={currency} expenseCategories={expenseCats} />

@@ -9,18 +9,36 @@ import { asNumber, formatCurrency } from "@/lib/format";
 
 type Cat = { id: number; name: string; color: string; total: number };
 
+const FIXED_SLICE_ID = -1;
+
 export function CategoryPieToggle({
   expenses,
   income,
+  fixedMonthlyEquivalent = 0,
   currency,
 }: {
   expenses: Cat[];
   income: Cat[];
+  /** Месячный эквивалент фиксов — один сектор пирога, сумма с KPI «Расходы». */
+  fixedMonthlyEquivalent?: number;
   currency: string;
 }) {
   const [mode, setMode] = useState<"expense" | "income">("expense");
   const raw = mode === "expense" ? expenses : income;
-  const data = raw.filter((e) => asNumber(e.total) > 0);
+  const fromTx = raw.filter((e) => asNumber(e.total) > 0);
+  const fixed = mode === "expense" ? Math.max(0, asNumber(fixedMonthlyEquivalent)) : 0;
+  const fixedSlice: Cat[] =
+    fixed > 0
+      ? [
+          {
+            id: FIXED_SLICE_ID,
+            name: "Фиксированные (мес.)",
+            color: "#DC2626",
+            total: fixed,
+          },
+        ]
+      : [];
+  const data = [...fixedSlice, ...fromTx];
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
@@ -32,8 +50,8 @@ export function CategoryPieToggle({
             </h3>
             <p className="mt-1 text-sm text-[var(--text-muted)]">Текущий месяц</p>
             <CEOHint>
-              Переключите «Расходы» / «Доходы», чтобы на одном графике смотреть доли категорий. Суммы только из
-              транзакций (фиксированные расходы здесь не делятся по категориям).
+              Переключите «Расходы» / «Доходы». По расходам: категории из транзакций плюс отдельный сектор
+              «Фиксированные (мес.)» — в сумме это те же цифры, что в карточке «Расходы» за месяц.
             </CEOHint>
           </div>
           <div
@@ -69,7 +87,7 @@ export function CategoryPieToggle({
         {data.length === 0 ? (
           <p className="mt-8 text-center text-sm text-[var(--text-muted)]">
             {mode === "expense"
-              ? "Нет переменных расходов за месяц"
+              ? "Нет расходов за месяц (ни транзакций, ни фиксированных)"
               : "Нет доходов за месяц"}
           </p>
         ) : (
@@ -88,7 +106,10 @@ export function CategoryPieToggle({
                     paddingAngle={2}
                   >
                     {data.map((entry) => (
-                      <Cell key={entry.id} fill={entry.color || "var(--accent-primary)"} />
+                      <Cell
+                        key={entry.id === FIXED_SLICE_ID ? "fixed-monthly" : entry.id}
+                        fill={entry.color || "var(--accent-primary)"}
+                      />
                     ))}
                   </Pie>
                   <Tooltip
@@ -106,7 +127,7 @@ export function CategoryPieToggle({
             </div>
             <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
               {data.map((d) => (
-                <li key={d.id} className="flex justify-between gap-3">
+                <li key={d.id === FIXED_SLICE_ID ? "fixed-monthly" : d.id} className="flex justify-between gap-3">
                   <span className="flex items-center gap-2">
                     <span
                       className="h-2.5 w-2.5 shrink-0 rounded-full"

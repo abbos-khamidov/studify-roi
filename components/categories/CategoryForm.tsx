@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import clsx from "clsx";
+import { notifyFinanceDataChanged } from "@/lib/finance-invalidate";
 
 const PRESETS = [
   "#F97316",
@@ -47,6 +48,7 @@ export function CategoryForm({
         return;
       }
       setName("");
+      notifyFinanceDataChanged();
       onDone();
     } catch {
       setErr("Сеть");
