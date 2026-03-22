@@ -13,8 +13,16 @@ function getSql(): NeonQueryFunction<false, false> {
   return _sql;
 }
 
-/** HTTP Neon: только `query("... $1", [x])` (без импорта клиента при загрузке модуля — иначе падает `next build` без env). */
+/** HTTP Neon: query() returns { rows, fields, ... } — we unwrap to rows[] for compatibility. */
 export const sql = {
-  query: (queryText: string, params: unknown[] = []) =>
-    getSql().query(queryText, params as never[]),
+  query: async (queryText: string, params: unknown[] = []) => {
+    const result = await getSql().query(queryText, params as never[]);
+    // neon .query() returns a FullQueryResults object { rows: [...], fields: [...], ... }
+    // but our queries.ts expects a plain array of row objects
+    if (result && typeof result === "object" && "rows" in result) {
+      return (result as { rows: Record<string, unknown>[] }).rows;
+    }
+    // fallback: if somehow it's already an array
+    return result;
+  },
 };
