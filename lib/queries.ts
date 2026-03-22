@@ -82,17 +82,17 @@ export async function getFixedCostsAggregate(): Promise<{
     `SELECT
       COALESCE(SUM(
         CASE TRIM(LOWER(frequency::text))
-          WHEN 'quarterly' THEN amount::numeric / 3
-          WHEN 'yearly' THEN amount::numeric / 12
-          ELSE amount::numeric
+          WHEN 'quarterly' THEN amount / 3.0
+          WHEN 'yearly' THEN amount / 12.0
+          ELSE amount
         END
-      ), 0)::float8 AS total,
-      COUNT(*)::bigint AS active_count
+      ), 0) AS total,
+      COUNT(*) AS active_count
      FROM fixed_costs
-     WHERE COALESCE(is_active, 0)::int <> 0`,
+     WHERE is_active = 1`,
     []
   );
-  const row = mapRow<{ total: unknown; active_count: unknown }>(rows as Record<string, unknown>[]);
+  const row = (rows as Record<string, unknown>[])[0];
   const monthlyTotal = Number(row?.total ?? 0);
   const activeCount = Number(row?.active_count ?? 0);
   return {
