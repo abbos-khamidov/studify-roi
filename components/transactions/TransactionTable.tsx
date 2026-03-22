@@ -123,6 +123,8 @@ export function TransactionTable({
         </select>
         <input
           type="date"
+          title="С даты"
+          aria-label="С даты"
           className="rounded-xl border border-[var(--border)] bg-[var(--bg-tertiary)] px-3 py-2 text-sm"
           value={from}
           onChange={(e) => {
@@ -132,6 +134,8 @@ export function TransactionTable({
         />
         <input
           type="date"
+          title="По дату"
+          aria-label="По дату"
           className="rounded-xl border border-[var(--border)] bg-[var(--bg-tertiary)] px-3 py-2 text-sm"
           value={to}
           onChange={(e) => {

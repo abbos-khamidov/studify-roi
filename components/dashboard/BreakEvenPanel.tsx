@@ -21,7 +21,7 @@ export function BreakEvenPanel({
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
       <Card className="p-5">
         <h3 className="font-display text-lg font-bold text-[var(--text-primary)]">
-          Break-Even Tracker
+          Прогресс к цели по выручке
         </h3>
         <p className="mt-1 text-sm text-[var(--text-muted)]">
           Текущая выручка к целевой ({formatCurrency(target, currency)})

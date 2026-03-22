@@ -93,7 +93,7 @@ export default function SettingsPage() {
 
       <div className="space-y-4 rounded-card border border-[var(--border)] bg-[var(--bg-secondary)] p-6">
         <div>
-          <label className="text-xs text-[var(--text-muted)]">OpenAI API Key</label>
+          <label className="text-xs text-[var(--text-muted)]">Ключ OpenAI API</label>
           <p className="mt-1 text-xs text-[var(--text-muted)]">
             {hasKey ? `Текущий: ${masked}` : "Не задан"}
           </p>
@@ -126,7 +126,7 @@ export default function SettingsPage() {
           />
         </div>
         <div>
-          <label className="text-xs text-[var(--text-muted)]">Monthly Revenue Target</label>
+          <label className="text-xs text-[var(--text-muted)]">Цель по выручке (в месяц)</label>
           <input
             type="number"
             step="0.01"

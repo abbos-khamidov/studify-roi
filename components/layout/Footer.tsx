@@ -3,7 +3,7 @@ export function Footer() {
     <footer className="border-t border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-3">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 text-sm text-[var(--text-muted)]">
         <span>
-          Powered by{" "}
+          При поддержке{" "}
           <a
             href="https://aisolution.uz"
             target="_blank"

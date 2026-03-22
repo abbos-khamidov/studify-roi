@@ -73,7 +73,8 @@ export function TransactionForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4 rounded-card border border-[var(--border)] bg-[var(--bg-secondary)] p-5">
+    <form onSubmit={submit} className="flex h-full flex-col space-y-4 rounded-card border border-[var(--border)] bg-[var(--bg-secondary)] p-5">
+      <h3 className="font-display text-lg font-bold text-[var(--text-primary)]">Новая операция</h3>
       <div className="flex gap-2">
         {(["income", "expense"] as const).map((t) => (
           <button

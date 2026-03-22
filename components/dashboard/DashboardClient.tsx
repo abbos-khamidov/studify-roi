@@ -4,11 +4,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useCurrency } from "@/components/currency-provider";
-import { AIChat } from "@/components/dashboard/AIChat";
 import { BreakEvenPanel } from "@/components/dashboard/BreakEvenPanel";
-import { CategoryBreakdown } from "@/components/dashboard/CategoryBreakdown";
+import { CategoryPieToggle } from "@/components/dashboard/CategoryPieToggle";
 import { ExpenseStructureChart } from "@/components/dashboard/ExpenseStructureChart";
-import { IncomeBarChart } from "@/components/dashboard/IncomeBarChart";
 import { KPICards } from "@/components/dashboard/KPICards";
 import { ProfitChart } from "@/components/dashboard/ProfitChart";
 import { RevenueVsTargetChart } from "@/components/dashboard/RevenueVsTargetChart";
@@ -63,11 +61,9 @@ export function DashboardClient() {
         >
           {cats.length === 0 && (
             <Card className="border border-dashed border-[var(--accent-primary)]/40 p-4">
-              <p className="font-display font-semibold text-[var(--text-primary)]">
-                Добавьте категории
-              </p>
+              <p className="font-display font-semibold text-[var(--text-primary)]">Добавьте категории</p>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                Категории доходов и расходов для учёта.
+                Отдельно доходы и расходы — на странице «Категории».
               </p>
               <Link
                 href="/categories"
@@ -79,11 +75,9 @@ export function DashboardClient() {
           )}
           {fixedN === 0 && (
             <Card className="border border-dashed border-[var(--accent-primary)]/40 p-4">
-              <p className="font-display font-semibold text-[var(--text-primary)]">
-                Внесите фиксированные расходы
-              </p>
+              <p className="font-display font-semibold text-[var(--text-primary)]">Фиксированные расходы</p>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                Аренда, зарплаты, подписки — на странице «Транзакции».
+                Аренда, зарплаты, подписки — в разделе «Операции».
               </p>
               <Link
                 href="/transactions"
@@ -95,17 +89,15 @@ export function DashboardClient() {
           )}
           {!hasKey && (
             <Card className="border border-dashed border-[var(--accent-primary)]/40 p-4">
-              <p className="font-display font-semibold text-[var(--text-primary)]">
-                Настройте AI-аналитик
-              </p>
+              <p className="font-display font-semibold text-[var(--text-primary)]">Ключ OpenAI</p>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                Добавьте ключ OpenAI для чата.
+                Для ответов AI-аналитика в левом меню.
               </p>
               <Link
                 href="/settings"
                 className="mt-3 inline-block rounded-pill bg-[var(--accent-primary)] px-4 py-2 text-sm text-white"
               >
-                Перейти
+                Настройки
               </Link>
             </Card>
           )}
@@ -114,48 +106,41 @@ export function DashboardClient() {
 
       <KPICards data={data} />
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="space-y-6 xl:col-span-2">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <ExpenseStructureChart
-              trend={data.profit.trend}
-              fixedMonthlyEquivalent={data.expenses.fixedTotal}
-              currency={data.currency}
-            />
-            <RevenueVsTargetChart
-              revenueByMonth={data.revenue.byMonth}
-              trendLabels={data.profit.trend.map(({ month, label }) => ({ month, label }))}
-              monthlyTarget={data.monthly_revenue_target}
-              currency={data.currency}
-            />
-          </div>
-
-          <ProfitChart data={data.profit.trend} currency={data.currency} />
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            <CategoryBreakdown expenses={data.expenses.byCategory} currency={data.currency} />
-            <IncomeBarChart income={data.revenue.byCategory} currency={data.currency} />
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            <BreakEvenPanel
-              currentProgress={data.breakEven.currentProgress}
-              target={data.monthly_revenue_target}
-              revenue={data.revenue.total}
-              currency={data.currency}
-            />
-            <ROICalculator
-              totalMonthlyExpenses={data.expenses.total}
-              fixedMonthlyEquivalent={data.expenses.fixedTotal}
-              variableExpensesThisMonth={data.expenses.variable}
-              currency={data.currency}
-            />
-          </div>
-        </div>
-        <div className="xl:col-span-1">
-          <AIChat />
-        </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ExpenseStructureChart
+          trend={data.profit.trend}
+          fixedMonthlyEquivalent={data.expenses.fixedTotal}
+          currency={data.currency}
+        />
+        <RevenueVsTargetChart
+          revenueByMonth={data.revenue.byMonth}
+          trendLabels={data.profit.trend.map(({ month, label }) => ({ month, label }))}
+          monthlyTarget={data.monthly_revenue_target}
+          currency={data.currency}
+        />
       </div>
+
+      <ProfitChart data={data.profit.trend} currency={data.currency} />
+
+      <CategoryPieToggle
+        expenses={data.expenses.byCategory}
+        income={data.revenue.byCategory}
+        currency={data.currency}
+      />
+
+      <BreakEvenPanel
+        currentProgress={data.breakEven.currentProgress}
+        target={data.monthly_revenue_target}
+        revenue={data.revenue.total}
+        currency={data.currency}
+      />
+
+      <ROICalculator
+        totalMonthlyExpenses={data.expenses.total}
+        fixedMonthlyEquivalent={data.expenses.fixedTotal}
+        variableExpensesThisMonth={data.expenses.variable}
+        currency={data.currency}
+      />
     </div>
   );
 }

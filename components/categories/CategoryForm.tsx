@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import clsx from "clsx";
 
 const PRESETS = [
   "#F97316",
@@ -23,9 +24,11 @@ export function CategoryForm({
   onDone: () => void;
 }) {
   const [name, setName] = useState("");
-  const [color, setColor] = useState(PRESETS[0]);
+  const [color, setColor] = useState(() => (type === "income" ? "#16A34A" : "#DC2626"));
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const isIncome = type === "income";
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,29 +56,56 @@ export function CategoryForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4 rounded-card border border-[var(--border)] bg-[var(--bg-secondary)] p-5">
-      <h3 className="font-display font-bold text-[var(--text-primary)]">Новая категория</h3>
+    <form
+      onSubmit={submit}
+      className={clsx(
+        "flex h-full flex-col space-y-4 rounded-card border-2 bg-[var(--bg-secondary)] p-5",
+        isIncome
+          ? "border-[var(--accent-success)]/50"
+          : "border-[var(--accent-danger)]/50"
+      )}
+    >
+      <div>
+        <span
+          className={clsx(
+            "inline-block rounded-pill px-3 py-1 text-xs font-bold uppercase tracking-wide text-white",
+            isIncome ? "bg-[var(--accent-success)]" : "bg-[var(--accent-danger)]"
+          )}
+        >
+          {isIncome ? "Доход" : "Расход"}
+        </span>
+        <h3 className="mt-3 font-display text-lg font-bold text-[var(--text-primary)]">
+          {isIncome ? "Новая категория дохода" : "Новая категория расхода"}
+        </h3>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          {isIncome
+            ? "Например: продажи курсов, консультации, подписки."
+            : "Например: реклама, зарплата, налоги (переменная часть)."}
+        </p>
+      </div>
       <div>
         <label className="text-xs text-[var(--text-muted)]">Название</label>
         <input
           className="mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-tertiary)] px-3 py-2"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          placeholder={isIncome ? "Название статьи дохода" : "Название статьи расхода"}
         />
       </div>
       <div>
-        <p className="text-xs text-[var(--text-muted)]">Цвет</p>
+        <p className="text-xs text-[var(--text-muted)]">Цвет на графиках</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {PRESETS.map((c) => (
             <button
               key={c}
               type="button"
               onClick={() => setColor(c)}
-              className={`h-8 w-8 rounded-full border-2 ${
+              className={clsx(
+                "h-8 w-8 rounded-full border-2",
                 color === c ? "border-[var(--text-primary)]" : "border-transparent"
-              }`}
+              )}
               style={{ background: c }}
-              aria-label={c}
+              aria-label={`Цвет ${c}`}
             />
           ))}
         </div>
@@ -90,7 +120,10 @@ export function CategoryForm({
       <button
         type="submit"
         disabled={loading}
-        className="rounded-pill bg-[var(--accent-primary)] px-6 py-2 text-sm text-white disabled:opacity-50"
+        className={clsx(
+          "mt-auto rounded-pill px-6 py-2.5 text-sm font-medium text-white disabled:opacity-50",
+          isIncome ? "bg-[var(--accent-success)]" : "bg-[var(--accent-danger)]"
+        )}
       >
         {loading ? "…" : "Создать"}
       </button>

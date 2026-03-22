@@ -207,6 +207,10 @@ export async function softDeleteCategory(id: number): Promise<CategoryRow | null
   return updateCategory(id, { is_active: 0 });
 }
 
+export async function hardDeleteCategory(id: number): Promise<void> {
+  await sql.query(`DELETE FROM categories WHERE id = $1`, [id]);
+}
+
 export async function listFixedCosts(): Promise<FixedCostRow[]> {
   const rows = await sql.query(`SELECT * FROM fixed_costs ORDER BY name ASC`, []);
   return mapRows<FixedCostRow>(rows as Record<string, unknown>[]);

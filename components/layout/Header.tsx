@@ -16,7 +16,7 @@ export function Header() {
             Studify Finance
           </h1>
           <p className="hidden text-xs text-[var(--text-muted)] sm:block">
-            CEO dashboard & calculator
+            Дашборд и калькулятор для руководителя
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">

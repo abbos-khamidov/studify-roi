@@ -38,7 +38,7 @@ export function KPICards({ data }: { data: Analytics }) {
 
   const cards = [
     {
-      label: "Total Revenue",
+      label: "Выручка",
       value: fmt(cur.revenue.total),
       sub: revTrend.text,
       subUp: revTrend.up,
@@ -46,7 +46,7 @@ export function KPICards({ data }: { data: Analytics }) {
       icon: Wallet,
     },
     {
-      label: "Total Expenses",
+      label: "Расходы",
       value: fmt(cur.expenses.total),
       sub: expTrend.text,
       subUp: !expTrend.up,
@@ -54,7 +54,7 @@ export function KPICards({ data }: { data: Analytics }) {
       icon: TrendingDown,
     },
     {
-      label: "Net Profit",
+      label: "Чистая прибыль",
       value: fmt(cur.profit.net),
       sub: profitTrend.text,
       subUp: cur.profit.net >= 0,
@@ -65,7 +65,7 @@ export function KPICards({ data }: { data: Analytics }) {
       icon: TrendingUp,
     },
     {
-      label: "Profit Margin",
+      label: "Маржа",
       value: formatPercent(cur.profit.margin, 1),
       sub: "от выручки за месяц",
       subUp: cur.profit.margin >= 0,
@@ -73,7 +73,7 @@ export function KPICards({ data }: { data: Analytics }) {
       icon: Percent,
     },
     {
-      label: "Break-Even",
+      label: "До безубыточности",
       value:
         cur.breakEven.revenueNeeded > 0
           ? fmt(cur.breakEven.revenueNeeded)
@@ -89,7 +89,7 @@ export function KPICards({ data }: { data: Analytics }) {
       icon: Scale,
     },
     {
-      label: "Target Progress",
+      label: "Цель по выручке",
       value:
         cur.monthly_revenue_target > 0
           ? formatPercent(cur.breakEven.currentProgress * 100, 0)

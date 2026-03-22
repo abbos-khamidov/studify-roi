@@ -53,13 +53,20 @@ export default function TransactionsPage() {
         ))}
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid gap-8 lg:grid-cols-2 lg:items-stretch">
         <TransactionForm
           categories={categories}
           defaultType={tab}
           onCreated={reload}
         />
-        <div />
+        <aside className="rounded-card border border-[var(--border)] bg-[var(--bg-secondary)] p-5 text-sm text-[var(--text-secondary)]">
+          <h3 className="font-display font-semibold text-[var(--text-primary)]">Как пользоваться</h3>
+          <ul className="mt-3 list-inside list-disc space-y-2">
+            <li>Вкладки «Доходы» и «Расходы» переключают тип операции и список категорий.</li>
+            <li>Категории настраиваются в разделе «Категории» (отдельно для дохода и расхода).</li>
+            <li>Ниже — таблица всех проводок; фиксированные расходы (аренда и т.д.) — в отдельном блоке.</li>
+          </ul>
+        </aside>
       </div>
 
       <TransactionTable currency={currency} categories={categories} tabType={tab} key={`${tab}-${tick}`} />

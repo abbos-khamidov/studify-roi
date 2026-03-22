@@ -15,11 +15,13 @@ export default function CategoriesPage() {
       <div>
         <h2 className="font-display text-2xl font-bold text-[var(--text-primary)]">Категории</h2>
         <p className="mt-1 text-[var(--text-secondary)]">
-          Создавайте категории доходов и расходов. Удаление не используется — только деактивация.
+          Слева — только <strong className="text-[var(--accent-success)]">доходы</strong>, справа — только{" "}
+          <strong className="text-[var(--accent-danger)]">расходы</strong>. «Скрыть» убирает категорию из выбора;
+          «Удалить» стирает её из базы (транзакции останутся без привязки к категории).
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 md:items-stretch">
         <CategoryForm type="income" onDone={() => setRefreshKey((k) => k + 1)} />
         <CategoryForm type="expense" onDone={() => setRefreshKey((k) => k + 1)} />
       </div>
@@ -28,8 +30,8 @@ export default function CategoriesPage() {
         {(
           [
             ["all", "Все"],
-            ["income", "Доходы"],
-            ["expense", "Расходы"],
+            ["income", "Только доходы"],
+            ["expense", "Только расходы"],
           ] as const
         ).map(([v, label]) => (
           <button

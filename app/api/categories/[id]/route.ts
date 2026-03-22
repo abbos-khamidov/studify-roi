@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { serverError } from "@/lib/api-error";
-import { getCategory, softDeleteCategory, updateCategory } from "@/lib/queries";
+import { getCategory, hardDeleteCategory, updateCategory } from "@/lib/queries";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export async function PUT(req: Request, ctx: Ctx) {
   }
 }
 
-export async function DELETE(_req: Request, ctx: Ctx) {
+export async function DELETE(req: Request, ctx: Ctx) {
   try {
     const { id: idStr } = ctx.params;
     const id = Number(idStr);
@@ -39,7 +39,13 @@ export async function DELETE(_req: Request, ctx: Ctx) {
     }
     const cur = await getCategory(id);
     if (!cur) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    await softDeleteCategory(id);
+    if (new URL(req.url).searchParams.get("permanent") !== "1") {
+      return NextResponse.json(
+        { error: "Деактивация: PUT с is_active. Полное удаление: DELETE ?permanent=1" },
+        { status: 400 }
+      );
+    }
+    await hardDeleteCategory(id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error(e);

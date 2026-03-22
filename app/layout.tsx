@@ -21,8 +21,8 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Studify Finance — CEO Dashboard",
-  description: "Финансовый дашборд и калькулятор для Studify",
+  title: "Studify Finance — финансовый дашборд",
+  description: "Дашборд, транзакции, категории и AI-аналитика для руководителя",
 };
 
 export default function RootLayout({
