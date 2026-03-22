@@ -73,12 +73,6 @@ function mapRow<T>(rows: Record<string, unknown>[]): T | undefined {
   return normalizeRow(rows[0]) as unknown as T;
 }
 
-function monthlyEquivalent(amount: number, frequency: string): number {
-  if (frequency === "quarterly") return amount / 3;
-  if (frequency === "yearly") return amount / 12;
-  return amount;
-}
-
 export async function getFixedCostsMonthlyTotal(): Promise<number> {
   /** Сумма в SQL: надёжнее чем JS (NUMERIC/string), is_active <> 0 — совместимо с PG smallint/boolean */
   const rows = await sql.query(
