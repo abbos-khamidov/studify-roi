@@ -47,7 +47,11 @@ export function DashboardClient() {
         hasLoadedOnce.current = true;
       }
       setCats({ length: Array.isArray(c) ? c.length : 0 });
-      setFixedN(Array.isArray(f) ? f.length : 0);
+      if (!a.error && a.expenses && typeof a.expenses.activeFixedCount === "number") {
+        setFixedN(Math.max(0, Math.floor(Number(a.expenses.activeFixedCount))));
+      } else {
+        setFixedN(Array.isArray(f) ? f.length : 0);
+      }
       setHasKey(Boolean(s.has_openai_key));
     } catch {
       if (!hasLoadedOnce.current) setErr("Не удалось загрузить данные");

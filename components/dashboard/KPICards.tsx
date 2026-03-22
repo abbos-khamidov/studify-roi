@@ -9,7 +9,13 @@ import { CEOHint } from "@/components/ui/CEOHint";
 type Analytics = {
   currency: string;
   revenue: { total: number; prevTotal: number };
-  expenses: { total: number; prevTotal: number };
+  expenses: {
+    total: number;
+    prevTotal: number;
+    variable: number;
+    fixedTotal: number;
+    activeFixedCount: number;
+  };
   profit: { net: number; margin: number; prevNet: number };
   breakEven: {
     dealsNeeded: number | null;
@@ -36,7 +42,24 @@ export function KPICards({ data }: { data: Analytics }) {
   const expTrend = trendPct(cur.expenses.total, cur.expenses.prevTotal);
   const profitTrend = trendPct(cur.profit.net, cur.profit.prevNet);
 
-  const cards = [
+  const expVar = Number(cur.expenses.variable) || 0;
+  const expFix = Number(cur.expenses.fixedTotal) || 0;
+  const expFixN = Math.max(0, Math.floor(Number(cur.expenses.activeFixedCount) || 0));
+  const expenseCaption = `Переменные (транзакции): ${fmt(expVar)} · Фикс в БД: ${fmt(expFix)}${
+    expFixN > 0 ? ` (${expFixN} активн. строк)` : ""
+  }`;
+
+  type CardItem = {
+    label: string;
+    value: string;
+    sub: string;
+    subUp: boolean;
+    border: string;
+    icon: typeof Wallet;
+    caption?: string;
+  };
+
+  const cards: CardItem[] = [
     {
       label: "Выручка",
       value: fmt(cur.revenue.total),
@@ -52,6 +75,7 @@ export function KPICards({ data }: { data: Analytics }) {
       subUp: !expTrend.up,
       border: "border-l-[var(--accent-danger)]",
       icon: TrendingDown,
+      caption: expenseCaption,
     },
     {
       label: "Чистая прибыль",
@@ -107,9 +131,9 @@ export function KPICards({ data }: { data: Analytics }) {
   return (
     <div className="space-y-3">
       <CEOHint>
-        Все суммы — текущий календарный месяц. «Расходы» = переменные транзакции + фиксированные затраты
-        (квартальные и годовые уже переведены в «за месяц»). Сравнение с прошлым месяцем помогает увидеть
-        тренд, а не абсолютную справедливость плана.
+        Все суммы — текущий календарный месяц, данные из базы Neon. «Расходы» = расходные транзакции за месяц
+        + фиксированные строки (таблица fixed_costs, блок внизу «Операции»). Если в таблице проводок пусто, а
+        расход есть — смотрите строку под карточкой «Расходы» и список фиксов; полный сброс — «Настройки».
       </CEOHint>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {cards.map((c, i) => {
@@ -136,6 +160,9 @@ export function KPICards({ data }: { data: Analytics }) {
                     <Icon className="h-3.5 w-3.5 shrink-0" />
                     {c.sub}
                   </p>
+                  {c.caption ? (
+                    <p className="mt-2 text-xs leading-relaxed text-[var(--text-muted)]">{c.caption}</p>
+                  ) : null}
                 </div>
               </div>
             </Card>

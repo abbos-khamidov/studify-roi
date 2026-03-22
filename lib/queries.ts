@@ -73,23 +73,37 @@ function mapRow<T>(rows: Record<string, unknown>[]): T | undefined {
   return normalizeRow(rows[0]) as unknown as T;
 }
 
-export async function getFixedCostsMonthlyTotal(): Promise<number> {
-  /** Сумма в SQL: надёжнее чем JS (NUMERIC/string), is_active <> 0 — совместимо с PG smallint/boolean */
+/** Одна выборка: месячный эквивалент фиксов и число активных строк (источник правды для дашборда и онбординга). */
+export async function getFixedCostsAggregate(): Promise<{
+  monthlyTotal: number;
+  activeCount: number;
+}> {
   const rows = await sql.query(
-    `SELECT COALESCE(SUM(
+    `SELECT
+      COALESCE(SUM(
         CASE TRIM(LOWER(frequency::text))
           WHEN 'quarterly' THEN amount::numeric / 3
           WHEN 'yearly' THEN amount::numeric / 12
           ELSE amount::numeric
         END
-      ), 0)::float8 AS total
+      ), 0)::float8 AS total,
+      COUNT(*)::bigint AS active_count
      FROM fixed_costs
      WHERE COALESCE(is_active, 0)::int <> 0`,
     []
   );
-  const row = mapRow<{ total: unknown }>(rows as Record<string, unknown>[]);
-  const n = Number(row?.total ?? 0);
-  return Number.isFinite(n) ? n : 0;
+  const row = mapRow<{ total: unknown; active_count: unknown }>(rows as Record<string, unknown>[]);
+  const monthlyTotal = Number(row?.total ?? 0);
+  const activeCount = Number(row?.active_count ?? 0);
+  return {
+    monthlyTotal: Number.isFinite(monthlyTotal) ? monthlyTotal : 0,
+    activeCount: Number.isFinite(activeCount) ? activeCount : 0,
+  };
+}
+
+export async function getFixedCostsMonthlyTotal(): Promise<number> {
+  const { monthlyTotal } = await getFixedCostsAggregate();
+  return monthlyTotal;
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -217,6 +231,7 @@ export async function hardDeleteCategory(id: number): Promise<void> {
 
 export async function listFixedCosts(): Promise<FixedCostRow[]> {
   const rows = await sql.query(`SELECT * FROM fixed_costs ORDER BY name ASC`, []);
+  if (!Array.isArray(rows)) return [];
   return mapRows<FixedCostRow>(rows as Record<string, unknown>[]);
 }
 
@@ -454,7 +469,7 @@ async function categoryTotals(
 
 export async function getAnalytics() {
   const settings = await getSettings();
-  const fixedTotal = await getFixedCostsMonthlyTotal();
+  const { monthlyTotal: fixedTotal, activeCount: activeFixedCount } = await getFixedCostsAggregate();
 
   const now = new Date();
   const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
@@ -530,6 +545,7 @@ export async function getAnalytics() {
       total: expMonth,
       variable: expVarMonth,
       fixedTotal,
+      activeFixedCount,
       prevTotal: expPrev,
       byCategory: expenseCats,
       byMonth: byMonthData.map((m) => ({ month: m.month, total: m.expenses })),
