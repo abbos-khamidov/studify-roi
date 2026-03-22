@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS settings (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   openai_key TEXT NOT NULL DEFAULT '',
-  currency TEXT NOT NULL DEFAULT 'USD',
+  currency TEXT NOT NULL DEFAULT 'UZS',
   company_name TEXT NOT NULL DEFAULT 'Studify',
   monthly_revenue_target NUMERIC NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 INSERT INTO settings (id, openai_key, currency, company_name, monthly_revenue_target)
-VALUES (1, '', 'USD', 'Studify', 0)
+VALUES (1, '', 'UZS', 'Studify', 0)
 ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS categories (

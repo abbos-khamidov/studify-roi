@@ -212,7 +212,9 @@ export function FixedCostsPanel({
               type="text"
               inputMode="decimal"
               autoComplete="off"
-              placeholder={currency === "UZS" ? "Например 2500000 или 2 500 000" : "Например 1500"}
+              placeholder={
+                currency === "EUR" ? "Например 1500 или 1 500,50" : "Например 2500000 или 2 500 000"
+              }
               required
               className="mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-tertiary)] px-3 py-2"
             />

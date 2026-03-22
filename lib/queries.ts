@@ -127,7 +127,7 @@ export async function resetAllData(): Promise<void> {
   await sql.query(`DELETE FROM fixed_costs`, []);
   await sql.query(`DELETE FROM categories`, []);
   await sql.query(
-    `UPDATE settings SET openai_key = '', currency = 'USD', company_name = 'Studify', monthly_revenue_target = 0, updated_at = NOW() WHERE id = 1`,
+    `UPDATE settings SET openai_key = '', currency = 'UZS', company_name = 'Studify', monthly_revenue_target = 0, updated_at = NOW() WHERE id = 1`,
     []
   );
 }
@@ -507,7 +507,7 @@ export async function getAnalytics() {
   const last3Start = format(startOfMonth(subMonths(now, 2)), "yyyy-MM-dd");
 
   return {
-    currency: settings.currency,
+    currency: settings.currency === "EUR" ? "EUR" : "UZS",
     company_name: settings.company_name,
     monthly_revenue_target: target,
     revenue: {

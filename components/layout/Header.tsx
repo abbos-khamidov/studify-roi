@@ -1,14 +1,12 @@
 "use client";
 
-import clsx from "clsx";
 import { useCurrency } from "@/components/currency-provider";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export function Header() {
-  const { currency, setNavbarCurrency, saving } = useCurrency();
+  const { currency } = useCurrency();
 
-  const usdActive = currency === "USD";
-  const uzsActive = currency === "UZS";
+  const label = currency === "EUR" ? "EUR (€)" : "UZS (soʻm)";
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg-secondary)]/90 backdrop-blur-md">
@@ -22,43 +20,12 @@ export function Header() {
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <div
-            className="flex overflow-hidden rounded-pill border border-[var(--border)] bg-[var(--bg-tertiary)] p-0.5"
-            role="group"
-            aria-label="Валюта отображения"
+          <span
+            className="rounded-pill border border-[var(--border)] bg-[var(--bg-tertiary)] px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] sm:text-sm"
+            title="Меняется в настройках"
           >
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => setNavbarCurrency("USD")}
-              className={clsx(
-                "min-w-[3.25rem] rounded-pill px-3 py-1.5 text-xs font-semibold transition sm:min-w-[4rem] sm:text-sm",
-                usdActive
-                  ? "bg-[var(--accent-primary)] text-white shadow-sm"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              )}
-            >
-              USD
-            </button>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => setNavbarCurrency("UZS")}
-              className={clsx(
-                "min-w-[3.25rem] rounded-pill px-3 py-1.5 text-xs font-semibold transition sm:min-w-[4rem] sm:text-sm",
-                uzsActive
-                  ? "bg-[var(--accent-primary)] text-white shadow-sm"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              )}
-            >
-              UZS
-            </button>
-          </div>
-          {currency === "EUR" && (
-            <span className="hidden text-xs text-[var(--text-muted)] lg:inline" title="В навбаре только USD/UZS">
-              В настройках: EUR
-            </span>
-          )}
+            {label}
+          </span>
           <ThemeToggle />
         </div>
       </div>

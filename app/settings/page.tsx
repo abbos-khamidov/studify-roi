@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useCurrency } from "@/components/currency-provider";
 import { Modal } from "@/components/ui/Modal";
 
 export default function SettingsPage() {
+  const { refresh } = useCurrency();
   const [openaiKey, setOpenaiKey] = useState("");
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState("UZS");
   const [companyName, setCompanyName] = useState("Studify");
   const [target, setTarget] = useState("");
   const [masked, setMasked] = useState("");
@@ -19,7 +21,7 @@ export default function SettingsPage() {
     fetch("/api/settings")
       .then((r) => r.json())
       .then((s) => {
-        setCurrency(s.currency || "USD");
+        setCurrency(s.currency === "EUR" ? "EUR" : "UZS");
         setCompanyName(s.company_name || "Studify");
         setTarget(String(s.monthly_revenue_target ?? ""));
         setMasked(s.openai_key_masked || "");
@@ -53,6 +55,7 @@ export default function SettingsPage() {
       setMasked(s.openai_key_masked || "");
       setHasKey(!!s.has_openai_key);
       setMsg("Сохранено");
+      await refresh();
     } catch {
       setMsg("Сеть");
     } finally {
@@ -110,9 +113,8 @@ export default function SettingsPage() {
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
           >
-            <option value="USD">USD</option>
-            <option value="UZS">UZS</option>
-            <option value="EUR">EUR</option>
+            <option value="UZS">UZS (soʻm)</option>
+            <option value="EUR">EUR (€)</option>
           </select>
         </div>
         <div>

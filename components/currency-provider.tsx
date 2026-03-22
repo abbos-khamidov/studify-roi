@@ -9,54 +9,39 @@ import {
   useState,
 } from "react";
 
-type CurrencyCode = "USD" | "UZS" | "EUR";
+type CurrencyCode = "UZS" | "EUR";
 
 type CurrencyContextValue = {
   currency: CurrencyCode;
-  setNavbarCurrency: (c: "USD" | "UZS") => Promise<void>;
-  saving: boolean;
+  /** Перечитать валюту с сервера (после сохранения в настройках). */
+  refresh: () => Promise<void>;
 };
 
 const CurrencyContext = createContext<CurrencyContextValue | null>(null);
 
 function normalizeCurrency(v: string | undefined): CurrencyCode {
-  if (v === "UZS" || v === "EUR") return v;
-  return "USD";
+  if (v === "EUR") return "EUR";
+  return "UZS";
 }
 
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
-  const [currency, setCurrency] = useState<CurrencyCode>("USD");
-  const [saving, setSaving] = useState(false);
+  const [currency, setCurrency] = useState<CurrencyCode>("UZS");
 
-  useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => r.json())
-      .then((s) => setCurrency(normalizeCurrency(s.currency)))
-      .catch(() => {});
+  const refresh = useCallback(async () => {
+    try {
+      const r = await fetch("/api/settings");
+      const s = await r.json();
+      setCurrency(normalizeCurrency(s.currency));
+    } catch {
+      /* ignore */
+    }
   }, []);
 
-  const setNavbarCurrency = useCallback(async (c: "USD" | "UZS") => {
-    if (c === currency) return;
-    setSaving(true);
-    try {
-      const res = await fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currency: c }),
-      });
-      if (res.ok) {
-        const s = await res.json();
-        setCurrency(normalizeCurrency(s.currency));
-      }
-    } finally {
-      setSaving(false);
-    }
-  }, [currency]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
-  const value = useMemo(
-    () => ({ currency, setNavbarCurrency, saving }),
-    [currency, setNavbarCurrency, saving]
-  );
+  const value = useMemo(() => ({ currency, refresh }), [currency, refresh]);
 
   return <CurrencyContext.Provider value={value}>{children}</CurrencyContext.Provider>;
 }

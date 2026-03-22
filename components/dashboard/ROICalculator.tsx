@@ -16,15 +16,6 @@ type RangePreset = {
 };
 
 function rangeForCurrency(currency: string): RangePreset {
-  if (currency === "UZS") {
-    return {
-      dealDefault: 5_000_000,
-      dealMin: 100_000,
-      dealMax: 200_000_000,
-      dealStep: 500_000,
-      dealsMax: 200,
-    };
-  }
   if (currency === "EUR") {
     return {
       dealDefault: 2000,
@@ -35,11 +26,11 @@ function rangeForCurrency(currency: string): RangePreset {
     };
   }
   return {
-    dealDefault: 2500,
-    dealMin: 100,
-    dealMax: 50_000,
-    dealStep: 100,
-    dealsMax: 100,
+    dealDefault: 5_000_000,
+    dealMin: 100_000,
+    dealMax: 200_000_000,
+    dealStep: 500_000,
+    dealsMax: 200,
   };
 }
 

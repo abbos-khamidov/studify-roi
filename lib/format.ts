@@ -1,5 +1,4 @@
 const SYMBOLS: Record<string, string> = {
-  USD: "$",
   EUR: "€",
   UZS: "soʻm",
 };
@@ -59,10 +58,11 @@ export function parseMoneyInput(raw: string): number | null {
 
 export function formatCurrency(amount: unknown, currency: string): string {
   const n = asNumber(amount);
-  const sym = SYMBOLS[currency] ?? currency + " ";
+  const cur = currency === "USD" ? "UZS" : currency;
+  const sym = SYMBOLS[cur] ?? `${cur} `;
   const abs = Math.abs(n);
 
-  if (currency === "UZS" && abs >= 1_000_000) {
+  if (cur === "UZS" && abs >= 1_000_000) {
     const compact = new Intl.NumberFormat("ru-RU", {
       notation: "compact",
       compactDisplay: "short",
@@ -72,10 +72,10 @@ export function formatCurrency(amount: unknown, currency: string): string {
   }
 
   const formatted = new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: abs >= 1000 && currency === "UZS" ? 0 : 2,
+    maximumFractionDigits: abs >= 1000 && cur === "UZS" ? 0 : 2,
     minimumFractionDigits: 0,
   }).format(n);
-  if (currency === "USD" || currency === "EUR") {
+  if (cur === "EUR") {
     return `${sym}${formatted}`;
   }
   return `${formatted} ${sym}`;
